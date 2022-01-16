@@ -1,0 +1,10 @@
+name = "Dice"
+uuid = "c81b9fed-521b-4ec1-87e0-ceb18a1eac4a"
+authors = ["phyxmeow <XueHaotian@outlook.com>"]
+version = "0.1.0"
+
+[deps]
+ConfigEnv = "01234589-554d-41b7-ae5c-7b6ee2db6796"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
+Telegram = "1da6f4ae-116c-4c38-8ee9-19974ff3601d"

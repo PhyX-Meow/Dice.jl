@@ -3,8 +3,11 @@ module Dice
 export run_dice
 
 using Telegram, Telegram.API
-using FileIO
+using JLD2
+using JSON3
+using Dates
 using MLStyle
+using ConfigEnv
 
 include("const.jl")
 include("diceCommand.jl")
@@ -58,19 +61,20 @@ function diceMain(msg)
         end
     end
 
-    reply = DiceReply("已阅，狗屁不通。") # 无匹配的命令
     for cmd ∈ cmdList
         m = match(cmd.reg, str)
         if m !== nothing
             reply = noReply
             if msg.message.chat.type ∈ ["group", "supergroup"] && :group ∈ cmd.options
-                reply = @eval $(cmd.func)($(m.captures))
+                groupId = msg.message.chat.id |> string
+                reply = @eval $(cmd.func)($(m.captures); groupId = $groupId)
             elseif msg.message.chat.type == "private" && :private ∈ cmd.options
                 reply = @eval $(cmd.func)($(m.captures))
             end
+            return diceReply(msg, reply)
         end
     end
-    diceReply(msg, reply)
+    return diceReply(msg, DiceReply("已阅，狗屁不通。")) # 无匹配的命令
 end
 
 function testMain(msg)
@@ -78,6 +82,28 @@ function testMain(msg)
     println()
 end
 
-run_dice() = run_bot(diceMain)
+function run_dice()
+    if !isfile("groupConfig.jld2")
+        jldsave("groupConfig.jld2"; time = now(), groups = Dict())
+    end
+    global groupConfigs = jldopen("groupConfig.jld2", "r+")
+
+    try
+        run_bot(diceMain)
+    finally
+        Base.close(groupConfigs)
+    end
+end
+
+function julia_main()::Cint
+    dotenv()
+    try
+        run_dice()
+    catch
+        Base.invokelatest(Base.display_error, Base.catch_stack())
+        return 1
+    end
+    return 0
+end
 
 end # module

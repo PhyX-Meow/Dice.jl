@@ -21,14 +21,18 @@ DiceReply(str::AbstractString) = DiceReply(str, false, true)
 const noReply = DiceReply(AbstractString[], false, false)
 
 struct DiceConfig
-    rcRule::Symbol
-    isOff::Bool
     customReply::Dict{Symbol,Array{String}}
 end
 
-const defaultConfig = DiceConfig(
-    :book,
-    false,
+mutable struct GroupConfig
+    rcRule::Symbol
+    isOff::Bool
+    team::Array{Int}
+end
+
+const groupDefault = GroupConfig(:book, false, Int[])
+
+const diceDefault = DiceConfig(
     Dict(
         :critical => [
             "是大成功哦！"
@@ -56,10 +60,11 @@ const adminList = [665378277, 597269526]
 const cmdList = [
     DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
-    DiceCmd(:botStart, r"^start$", "Hello，悟理球！", Set([:private])),
-    DiceCmd(:botSet, r"^bot(.*)", "bot开关", Set([:group, :private])),
+    DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
+    DiceCmd(:botSwitch, r"^bot (on|off)", "bot开关", Set([:group, :off])),
+    DiceCmd(:botInfo, r"^bot", "bot信息", Set([:group, :private])),
     DiceCmd(:diceConfig, r"conf(.*)", "Dice设置", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
 ]
 
-skillList = Dict()
+skillList = Dict("安息" => 90)

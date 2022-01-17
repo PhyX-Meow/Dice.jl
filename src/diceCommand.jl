@@ -54,8 +54,8 @@ function xdy(num::Integer, face::Integer)
     rand(1:face, num) |> sum
 end
 
-function roll(args)
-    ops, b, p, str = args
+function roll(argstr; groupId = "")
+    ops, b, p, str = argstr
     if ops === nothing
         ops = ""
     end
@@ -63,9 +63,6 @@ function roll(args)
     hidden = 'h' ∈ ops
     book = 'c' ∈ ops
     pop = 'a' ∈ ops
-    if book && pop
-        return DiceReply("错误，骰点规则不明确")
-    end
     check = pop || book
     if b !== nothing
         bonus = 1
@@ -87,9 +84,14 @@ function roll(args)
 
 
     if check
-        rule = defaultConfig.rcRule
+        rule = groupDefault.rcRule
+        if !isempty(groupId) && haskey(groupConfigs, groupId)
+            rule = groupConfigs[groupId].rcRule
+        end
         if pop
             rule = :pop
+        elseif book
+            rule = :book
         end
 
         success = -1
@@ -178,7 +180,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     if check == :na
         throw(DiceError("错误，找不到对应的规则"))
     end
-    res *= "/$(success)。" * rand(defaultConfig.customReply[check])
+    res *= "/$(success)。" * rand(diceDefault.customReply[check])
     return res
 end
 
@@ -203,8 +205,8 @@ function rollDice(str::AbstractString)
     end
 end
 
-function charMake(args)
-    m = match(r"^\s*(\d+)", args[1])
+function charMake(argstr; kw...)
+    m = match(r"^\s*(\d+)", argstr[1])
     num = 1
     if m !== nothing
         num = parse(Int, m.captures[1])
@@ -220,18 +222,46 @@ function charMake(args)
     return DiceReply(res, false, false)
 end
 
-function botStart(args)
+function botStart(args...)
     return DiceReply("你现在也是手上粘着悟理球的 Friends 啦！", false, false)
 end
 
-function fuck2060(args)
-    return DiceReply("玩你🐎透明字符呢，滚！", false, true)
-end
-
-function botSet(args)
+function botInfo(args...)
     return DiceReply("""
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion
         输入 .help 获取指令列表
         """, false, false)
+end
+
+function botSwitch(argstr; groupId = "")
+    if isempty(groupId)
+        return noReply
+    end
+    if !haskey(groupConfigs, groupId)
+        groupConfigs[groupId] = groupDefault
+    end
+    cp = groupConfigs[groupId]
+    @switch argstr[1] begin
+        @case "on"
+        if groupConfigs[groupId].isOff
+            cp.isOff = false
+            delete!(groupConfigs, groupId)
+            groupConfigs[groupId] = cp
+            return DiceReply("悟理球出现了！")
+        end
+        return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
+        @case "off"
+        if groupConfigs[groupId].isOff
+            return noReply
+        end
+        cp.isOff = true
+        groupConfigs[groupId] = cp
+        return DiceReply("悟理球不知道哪里去了~")
+    end
+    return noReply
+end
+
+function fuck2060(args...)
+    return DiceReply("玩你🐎透明字符呢，滚！", false, true)
 end

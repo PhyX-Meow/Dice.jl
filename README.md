@@ -2,6 +2,6 @@
 
 - [x] .r commands (rd ra rc rb rp rh)
 - [x] .coc7 command
-- [ ] .bot command
+- [x] .bot command
 - [ ] .st commands
 - [ ] ...

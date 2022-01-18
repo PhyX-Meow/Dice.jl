@@ -45,7 +45,7 @@ function diceMain(msg)
 
     str = msg.message.text
     #  user = msg.message.from.username
-    if !(str[1] ∈ ['.', '/', '。'])
+    if str[1] ∉ ['.', '/', '。']
         return nothing
     end
 
@@ -61,20 +61,41 @@ function diceMain(msg)
         end
     end
 
+    ignore = true
+    chatType = :na
+    if msg.message.chat.type ∈ ["group", "supergroup"]
+        chatType = :group
+        groupId = msg.message.chat.id |> string
+        ignore = haskey(groupConfigs, groupId) ? groupConfigs[groupId].isOff : groupDefault.isOff
+    elseif msg.message.chat.type == "private"
+        chatType = :private
+        ignore = false
+    end
+    if chatType == :na
+        return nothing
+    end
+
+    reply = DiceReply("已阅，狗屁不通。")
     for cmd ∈ cmdList
+        if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
+            continue
+        end
         m = match(cmd.reg, str)
         if m !== nothing
+            ignore = false
             reply = noReply
-            if msg.message.chat.type ∈ ["group", "supergroup"] && :group ∈ cmd.options
-                groupId = msg.message.chat.id |> string
+            if chatType == :group
                 reply = @eval $(cmd.func)($(m.captures); groupId = $groupId)
-            elseif msg.message.chat.type == "private" && :private ∈ cmd.options
+            elseif chatType == :private
                 reply = @eval $(cmd.func)($(m.captures))
             end
-            return diceReply(msg, reply)
+            break
         end
     end
-    return diceReply(msg, DiceReply("已阅，狗屁不通。")) # 无匹配的命令
+    if !ignore
+        return diceReply(msg, reply)
+    end
+    return nothing
 end
 
 function testMain(msg)

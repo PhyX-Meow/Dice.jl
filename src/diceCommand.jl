@@ -256,6 +256,7 @@ function botSwitch(argstr; groupId = "")
             return noReply
         end
         cp.isOff = true
+        delete!(groupConfigs, groupId)
         groupConfigs[groupId] = cp
         return DiceReply("悟理球不知道哪里去了~")
     end

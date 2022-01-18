@@ -263,6 +263,14 @@ function botSwitch(argstr; groupId = "")
     return noReply
 end
 
+function diceHelp(argstr; kw...)
+    return DiceReply("喵喵喵", false, false)
+end
+
+function jrrp(argstr; kw...)
+    return DiceReply("Working in Progress")
+end
+
 function fuck2060(args...)
     return DiceReply("玩你🐎透明字符呢，滚！", false, true)
 end

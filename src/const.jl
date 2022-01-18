@@ -63,7 +63,9 @@ const cmdList = [
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
     DiceCmd(:botSwitch, r"^bot (on|off)", "bot开关", Set([:group, :off])),
     DiceCmd(:botInfo, r"^bot", "bot信息", Set([:group, :private])),
-    DiceCmd(:diceConfig, r"conf(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(:diceConfig, r"^conf(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(:diceHelp, r"^help(.*)", "获取帮助", Set([:group, :private])),
+    DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
 ]
 

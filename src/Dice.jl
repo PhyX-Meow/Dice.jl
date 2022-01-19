@@ -38,7 +38,7 @@ end
 function kwReply(str::String, chatId::Int)
     for s ∈ keys(kwList)
         if str == s
-            sendMessage(text = kwList[str], chat_id = chatId)
+            sendMessage(text = rand(kwList[str]), chat_id = chatId)
         end
     end
 end

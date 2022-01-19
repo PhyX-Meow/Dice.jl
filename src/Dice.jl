@@ -35,6 +35,14 @@ function diceReply(msg, reply::DiceReply)
     end
 end
 
+function kwReply(str::String, chatId::Int)
+    for s ∈ keys(kwList)
+        if str == s
+            sendMessage(text = kwList[str], chat_id = chatId)
+        end
+    end
+end
+
 function diceMain(msg)
     if !(haskey(msg, :message) && haskey(msg.message, :text))
         return nothing
@@ -46,7 +54,7 @@ function diceMain(msg)
     str = msg.message.text
     #  user = msg.message.from.username
     if str[1] ∉ ['.', '/', '。']
-        return nothing
+        return kwReply(str, msg.message.chat.id)
     end
 
     str = chop(str, head = 1, tail = 0)
@@ -75,7 +83,7 @@ function diceMain(msg)
         return nothing
     end
 
-    reply = DiceReply("已阅，狗屁不通。")
+    reply = noReply
     for cmd ∈ cmdList
         if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
             continue

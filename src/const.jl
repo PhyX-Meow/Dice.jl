@@ -68,5 +68,8 @@ const cmdList = [
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
 ]
+const kwList = Dict(
+    "悟理球" => ["悟理球在！", "需要骰子吗！"]
+)
 
 skillList = Dict("安息" => 90)

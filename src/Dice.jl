@@ -64,7 +64,11 @@ function diceMain(msg)
         if m !== nothing
             diceReply(msg, DiceReply("警告！，你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]
-            ret = superCommand |> Meta.parse |> eval
+            try
+                ret = superCommand |> Meta.parse |> eval
+            catch err
+                return diceReply(msg, DiceReply("执行失败"), false, false)
+            end
             return diceReply(msg, DiceReply("执行结果：$ret", false, false))
         end
     end

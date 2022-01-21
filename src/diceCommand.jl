@@ -259,7 +259,7 @@ function botSwitch(argstr; groupId = "")
         delete!(groupConfigs, groupId)
         groupConfigs[groupId] = cp
         return DiceReply("悟理球不知道哪里去了~")
-        @case exit
+        @case "exit"
         sendMessage("悟理球从这里消失了", chat_id = parse(Int, groupId))
         leaveChat(chat_id = parse(Int, groupId))
         delete!(groupConfigs, groupId)

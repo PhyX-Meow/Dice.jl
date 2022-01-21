@@ -222,11 +222,11 @@ function charMake(argstr; kw...)
     return DiceReply(res, false, false)
 end
 
-function botStart(args...)
+function botStart(args; kw...)
     return DiceReply("你现在也是手上粘着悟理球的 Friends 啦！", false, false)
 end
 
-function botInfo(args...)
+function botInfo(args; kw...)
     return DiceReply("""
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion

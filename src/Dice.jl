@@ -48,8 +48,8 @@ function diceMain(msg)
         return nothing
     end
 
-    show(msg)
-    println()
+    # show(msg)
+    # println()
 
     str = msg.message.text
     #  user = msg.message.from.username

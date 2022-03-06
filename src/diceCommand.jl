@@ -246,7 +246,11 @@ function botSwitch(argstr; groupId = "", kw...)
 end
 
 function diceHelp(argstr; kw...)
-    return DiceReply("喵喵喵", false, false)
+    m = match(r"link", argstr[1])
+    if m !== nothing
+        return DiceReply(helpLinks, false, false)
+    end
+    return DiceReply(helpText, false, false)
 end
 
 function getJrrpSeed()

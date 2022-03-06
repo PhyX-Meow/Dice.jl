@@ -67,8 +67,10 @@ function diceMain(msg)
         return nothing
     end
 
-    # show(msg)
-    # println()
+    if debug_flag
+        show(msg)
+        println()
+    end
 
     str = msg.message.text
     if str[1] ∉ ['.', '/', '。']
@@ -116,8 +118,15 @@ function diceMain(msg)
         if m !== nothing
             ignore = false
             try
-                reply = @eval $(cmd.func)($(m.captures); groupId = groupId, userId = userId)
+                reply = @eval $(cmd.func)($(m.captures); groupId = $groupId, userId = $userId)
             catch err
+                if debug_flag
+                    showerror(stdout, err)
+                    println()
+                    display(stacktrace(catch_backtrace()))
+                    println()
+                end
+
                 if err isa DiceError
                     reply = DiceReply(err.text)
                 else
@@ -138,12 +147,15 @@ function testMain(msg)
     println()
 end
 
-function run_dice()
+function run_dice(; debug = false)
+    if debug
+        global debug_flag = true
+    end
+
     if !isfile("groupConfig.jld2")
         jldsave("groupConfig.jld2")
     end
     global groupConfigs = jldopen("groupConfig.jld2", "r+")
-
     if !isfile("jrrpCache.jld2")
         jldsave("jrrpCache.jld2")
     end

@@ -250,11 +250,8 @@ function diceHelp(argstr; kw...)
 end
 
 function getJrrpSeed()
-    try
-        resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
-    catch err
-        throw(DiceError("今日人品获取超时"))
-    end
+    resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
+    # 加入超时报错
     dataJSON = resp.body |> String |> JSON3.read
     if !dataJSON.success
         throw(DiceError("今日人品获取失败"))

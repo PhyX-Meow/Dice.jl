@@ -148,8 +148,9 @@ function testMain(msg)
 end
 
 function run_dice(; debug = false)
+    global debug_flag = false
     if debug
-        global debug_flag = true
+        debug_flag = true
     end
 
     if !isfile("groupConfig.jld2")

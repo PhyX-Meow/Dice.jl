@@ -3,8 +3,9 @@
 - [x] .r commands (rd ra rc rb rp rh)
 - [x] .coc7 command
 - [x] .bot command
-- [ ] .bot exit
-- [ ] 统一异常处理逻辑
+- [x] .bot exit
+- [x] 统一异常处理逻辑
+- [x] .jrrp
 - [ ] 修改 DiceCmd 处理逻辑，改为传入 msg
 - [ ] add useful links: 空白人物卡，规则书，魔都，dicecho...
 - [ ] .help command

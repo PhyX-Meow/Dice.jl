@@ -96,10 +96,10 @@ function diceMain(msg)
 
     ignore = true
     chatType = :na
+    groupId = msg.message.chat.id |> string
+    userId = msg.message.from.id |> string
     if msg.message.chat.type ∈ ["group", "supergroup"]
         chatType = :group
-        groupId = msg.message.chat.id |> string
-        userId = msg.message.from.id |> string
         ignore = haskey(groupConfigs, groupId) ? groupConfigs[groupId].isOff : groupDefault.isOff
     elseif msg.message.chat.type == "private"
         chatType = :private

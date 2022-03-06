@@ -3,9 +3,11 @@ module Dice
 export run_dice
 
 using Telegram, Telegram.API
+using HTTP
 using JLD2
 using JSON3
 using Dates
+using Random
 using MLStyle
 using ConfigEnv
 
@@ -25,7 +27,7 @@ function diceReply(msg, text::AbstractString; ref = true, pvt = false)
     elseif ref
         sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
     else
-        sendMessage(text = tt, chat_id = msg.message.chat.id)
+        sendMessage(text = text, chat_id = msg.message.chat.id)
     end
 end
 
@@ -69,12 +71,11 @@ function diceMain(msg)
     # println()
 
     str = msg.message.text
-    #  user = msg.message.from.username
     if str[1] ∉ ['.', '/', '。']
         return kwReply(str, msg.message.chat.id)
     end
 
-    str = chop(str, head = 1, tail = 0)
+    str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     if hash(msg.message.from.id) ∈ superAdminList
         m = match(r"eval\s(.*)", str)
@@ -96,6 +97,7 @@ function diceMain(msg)
     if msg.message.chat.type ∈ ["group", "supergroup"]
         chatType = :group
         groupId = msg.message.chat.id |> string
+        userId = msg.message.from.id |> string
         ignore = haskey(groupConfigs, groupId) ? groupConfigs[groupId].isOff : groupDefault.isOff
     elseif msg.message.chat.type == "private"
         chatType = :private
@@ -113,11 +115,14 @@ function diceMain(msg)
         m = match(cmd.reg, str)
         if m !== nothing
             ignore = false
-            reply = noReply
-            if chatType == :group
-                reply = @eval $(cmd.func)($(m.captures); groupId = $groupId)
-            elseif chatType == :private
-                reply = @eval $(cmd.func)($(m.captures))
+            try
+                reply = @eval $(cmd.func)($(m.captures); groupId = groupId, userId = userId)
+            catch err
+                if err isa DiceError
+                    reply = DiceReply(err.text)
+                else
+                    reply = DiceReply("遇到了触及知识盲区的错误.jpg")
+                end
             end
             break
         end
@@ -135,14 +140,20 @@ end
 
 function run_dice()
     if !isfile("groupConfig.jld2")
-        jldsave("groupConfig.jld2"; time = now(), groups = Dict())
+        jldsave("groupConfig.jld2")
     end
     global groupConfigs = jldopen("groupConfig.jld2", "r+")
+
+    if !isfile("jrrpCache.jld2")
+        jldsave("jrrpCache.jld2")
+    end
+    global jrrpCache = jldopen("jrrpCache.jld2", "r+")
 
     try
         run_bot(diceMain)
     finally
         Base.close(groupConfigs)
+        Base.close(jrrpCache)
     end
 end
 

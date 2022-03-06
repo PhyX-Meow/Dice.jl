@@ -55,8 +55,8 @@ const diceDefault = DiceConfig(
     )
 )
 
-const superAdminList = [665378277]
-const adminList = [665378277, 597269526]
+const superAdminList = [0xc45c1b20b131d1c8]
+const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
     DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),

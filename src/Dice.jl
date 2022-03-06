@@ -12,7 +12,24 @@ using ConfigEnv
 include("const.jl")
 include("diceCommand.jl")
 
-function diceReply(msg, reply::DiceReply)
+function diceReply(msg, text::AbstractString; ref = true, pvt = false)
+    if isempty(text) || length(text) > 512
+        return nothing
+    end
+    if pvt
+        try
+            sendMessage(text = text, chat_id = msg.message.from.id)
+        catch err
+            sendMessage(text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start", chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+        end
+    elseif ref
+        sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+    else
+        sendMessage(text = tt, chat_id = msg.message.chat.id)
+    end
+end
+
+function diceReplyLagacy(msg, reply::DiceReply)
     if isempty(reply.text)
         return nothing
     end
@@ -59,18 +76,18 @@ function diceMain(msg)
 
     str = chop(str, head = 1, tail = 0)
 
-    if msg.message.from.id ∈ superAdminList
+    if hash(msg.message.from.id) ∈ superAdminList
         m = match(r"eval\s(.*)", str)
         if m !== nothing
-            diceReply(msg, DiceReply("警告！你在执行一个超级指令！", false, true))
+            diceReplyLagacy(msg, DiceReply("警告！你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]
             ret = nothing
             try
                 ret = superCommand |> Meta.parse |> eval
             catch err
-                return diceReply(msg, DiceReply("执行失败", false, false))
+                return diceReplyLagacy(msg, DiceReply("执行失败", false, false))
             end
-            return diceReply(msg, DiceReply("执行结果：$ret", false, false))
+            return diceReplyLagacy(msg, DiceReply("执行结果：$ret", false, false))
         end
     end
 
@@ -106,7 +123,7 @@ function diceMain(msg)
         end
     end
     if !ignore
-        return diceReply(msg, reply)
+        return diceReplyLagacy(msg, reply)
     end
     return nothing
 end

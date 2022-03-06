@@ -58,8 +58,10 @@ function kwReply(str::String, chatId::Int)
     for s ∈ keys(kwList)
         if str == s
             sendMessage(text = rand(kwList[str]), chat_id = chatId)
+            return true
         end
     end
+    return false
 end
 
 function diceMain(msg)
@@ -73,8 +75,8 @@ function diceMain(msg)
     end
 
     str = msg.message.text
-    if str[1] ∉ ['.', '/', '。']
-        return kwReply(str, msg.message.chat.id)
+    if kwReply(str, msg.message.chat.id)
+        return nothing
     end
 
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")

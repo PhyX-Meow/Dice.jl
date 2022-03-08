@@ -79,6 +79,10 @@ function diceMain(msg)
         return nothing
     end
 
+
+    if str[1] ∉ ['.', '/', '。']
+        return nothing
+    end
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     if hash(msg.message.from.id) ∈ superAdminList
@@ -163,12 +167,17 @@ function run_dice(; debug = false)
         jldsave("jrrpCache.jld2")
     end
     global jrrpCache = jldopen("jrrpCache.jld2", "r+")
+    if !isfile("userData.jld2")
+        jldsave("userData.jld2")
+    end
+    global userData = jldopen("groupConfig.jld2", "r+")
 
     try
         run_bot(diceMain)
     finally
         Base.close(groupConfigs)
         Base.close(jrrpCache)
+        Base.close(userData)
     end
 end
 

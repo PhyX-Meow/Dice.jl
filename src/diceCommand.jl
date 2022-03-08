@@ -253,6 +253,34 @@ function diceHelp(argstr; kw...)
     return DiceReply(helpText, false, false)
 end
 
+function invNew(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function invRename(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function invRemove(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function invLock(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function invList(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function skillShow(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
+function skillSet(argstr; kw...)
+    return DiceReply("WIP.")
+end
+
 function getJrrpSeed()
     resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
     # 加入超时报错

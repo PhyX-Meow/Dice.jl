@@ -78,6 +78,145 @@ const diceDefault = DiceConfig(
     )
 )
 
+mutable struct Investigator
+    savetime::DateTime
+    name::String
+    skills::Dict{String,Int}
+end
+
+const defaultSkill = Dict( # 单独处理闪避和母语
+    "会计" => 5,
+    "表演" => 5,
+    "动物驯养" => 5,
+    "人类学" => 1,
+    "估价" => 5,
+    "考古学" => 1,
+    "炮术" => 1,
+    "天文学" => 1,
+    "斧" => 15,
+    "生物学" => 1,
+    "植物学" => 1,
+    "弓" => 15,
+    "斗殴" => 25,
+    "链锯" => 10,
+    "取悦" => 15,
+    "化学" => 1,
+    "攀爬" => 20,
+    "计算机使用" => 5,
+    "信用评级" => 0,
+    "密码学" => 1,
+    "克苏鲁神话" => 0,
+    "爆破" => 1,
+    "乔装" => 5,
+    "潜水" => 1,
+    "闪避" => 1,
+    "汽车驾驶" => 20,
+    "电气维修" => 10,
+    "电子学" => 1,
+    "工程学" => 1,
+    "话术" => 5,
+    "美术" => 5,
+    "急救" => 30,
+    "连枷" => 10,
+    "火焰喷射器" => 10,
+    "司法科学" => 1,
+    "伪造文书" => 5,
+    "绞索" => 15,
+    "地质学" => 1,
+    "手枪" => 20,
+    "重武器" => 10,
+    "历史" => 5,
+    "催眠" => 1,
+    "恐吓" => 15,
+    "跳跃" => 20,
+    "母语" => 1,
+    "法律" => 5,
+    "图书馆使用" => 20,
+    "聆听" => 20,
+    "锁匠" => 1,
+    "机枪" => 10,
+    "数学" => 10,
+    "机械维修" => 10,
+    "医学" => 1,
+    "气象学" => 1,
+    "博物学" => 10,
+    "导航" => 10,
+    "神秘学" => 5,
+    "操作重型机械" => 1,
+    "说服" => 1,
+    "药学" => 1,
+    "摄影" => 5,
+    "物理学" => 1,
+    "精神分析" => 1,
+    "心理学" => 10,
+    "读唇" => 1,
+    "骑术" => 5,
+    "步枪/霰弹枪" => 25,
+    "妙手" => 10,
+    "矛" => 20,
+    "侦查" => 25,
+    "潜行" => 20,
+    "冲锋枪" => 15,
+    "生存" => 10,
+    "刀剑" => 20,
+    "游泳" => 20,
+    "投掷" => 20,
+    "追踪" => 10,
+    "鞭" => 5,
+    "动物学" => 1
+)
+
+const skillAlias = Dict(
+    "str" => "力量",
+    "con" => "体质",
+    "siz" => "体型",
+    "dex" => "敏捷",
+    "app" => "外貌", "外表" => "外貌",
+    "int" => "智力", "灵感" => "智力",
+    "pow" => "意志",
+    "edu" => "教育", "知识" => "教育",
+    "luc" => "幸运", "运气" => "幸运",
+    "san" => "理智", "san值" => "理智", "理智值" => "理智",
+    "计算机" => "计算机使用", "电脑" => "计算机使用",
+    "魅惑" => "取悦",
+    "信用" => "信用评级", "信誉" => "信用评级",
+    "cm" => "克苏鲁神话", "克苏鲁" => "克苏鲁神话",
+    "汽车" => "汽车驾驶", "驾驶" => "汽车驾驶",
+    "步枪" => "步枪/霰弹枪", "霰弹枪" => "步枪/霰弹枪", "霰弹" => "步枪/霰弹枪", "步霰" => "步枪/霰弹枪"
+    "图书馆" => "图书馆使用",
+    "自然学" => "博物学",
+    "领航" => "导航",
+    "重型操作" => "操作重型机械", "重型机械" => "操作重型机械", "操作重机" => "操作重型机械",
+    "侦察" => "侦查",
+    "剑" => "刀剑",
+    "hp" => "体力",
+    "mp" => "魔法"
+)
+
+const superAdminList = [0xc45c1b20b131d1c8]
+const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
+const cmdList = [
+    DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
+    DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
+    DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
+    DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),
+    DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
+    DiceCmd(:diceConfig, r"^conf(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
+    DiceCmd(:invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
+    DiceCmd(:invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),
+    DiceCmd(:invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
+    DiceCmd(:invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
+    DiceCmd(:invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
+    DiceCmd(:invList, r"^pc(?: list)?", "当前人物卡列表", Set([:group, :private])),
+    DiceCmd(:skillShow, r"^st show\s*(.*)", "查询技能值", Set([:group, :private])),
+    DiceCmd(:skillSet, r"^st\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
+    DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
+]
+
+skillList = Dict("安息" => 90)
+
 const helpText = """
     Dice Julian, made by 悟理(@phyxmeow).
     Version $diceVersion
@@ -99,19 +238,6 @@ const helpLinks = """
     守密人规则书: https://1drv.ms/b/s!AnsQDRnK8xdggZUiWCC3EsnUGpziEg?e=5mxIx5
     """
 
-const superAdminList = [0xc45c1b20b131d1c8]
-const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
-const cmdList = [
-    DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
-    DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
-    DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
-    DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),
-    DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
-    DiceCmd(:diceConfig, r"^conf(.*)", "Dice设置", Set([:group, :private])),
-    DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
-    DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
-    DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
-]
 const kwList = Dict(
     "悟理球" => ["悟理球在！", "需要骰子吗！"],
     ".dismiss" => ["悟理球不仅没有走，反而粘到了你的手上。"],
@@ -204,5 +330,3 @@ const kwList = Dict(
         "不准给我踏上阶梯半步！我在上面！而你在下面！"
     ]
 )
-
-skillList = Dict("安息" => 90)

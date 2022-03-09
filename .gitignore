@@ -1,4 +1,5 @@
 .env
 groupConfig.jld2
 jrrpCache.jld2
+userData.jld2
 *test*

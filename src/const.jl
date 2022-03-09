@@ -80,7 +80,6 @@ const diceDefault = DiceConfig(
 
 mutable struct Investigator
     savetime::DateTime
-    name::String
     skills::Dict{String,Int}
 end
 
@@ -182,6 +181,7 @@ const skillAlias = Dict(
     "信用" => "信用评级", "信誉" => "信用评级",
     "cm" => "克苏鲁神话", "克苏鲁" => "克苏鲁神话",
     "汽车" => "汽车驾驶", "驾驶" => "汽车驾驶",
+    "马术" => "骑术",
     "步枪" => "步枪/霰弹枪", "霰弹枪" => "步枪/霰弹枪", "霰弹" => "步枪/霰弹枪", "步霰" => "步枪/霰弹枪",
     "图书馆" => "图书馆使用",
     "自然学" => "博物学",
@@ -208,19 +208,19 @@ const cmdList = [
     DiceCmd(:invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
     DiceCmd(:invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
     DiceCmd(:invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
-    DiceCmd(:invList, r"^pc(?: list)?", "当前人物卡列表", Set([:group, :private])),
+    DiceCmd(:invList, r"^pc(?: list)?\s*$", "当前人物卡列表", Set([:group, :private])),
+    DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
     DiceCmd(:skillShow, r"^st show\s*(.*)", "查询技能值", Set([:group, :private])),
-    DiceCmd(:skillSet, r"^st\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(:skillSet, r"^st( force)\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(:sanCheck, r"^sc\s*([\dd+-*]+)/([\dd+-*]+)", "理智检定", Set([:group, :private])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
 ]
 
-skillList = Dict("安息" => 90)
-
 const helpText = """
     Dice Julian, made by 悟理(@phyxmeow).
     Version $diceVersion
-    ————————————————————————————————————
+    ———————————————————————————————
     目前可用的指令列表：
     .help
     .bot [on/off/exit]

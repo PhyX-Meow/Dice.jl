@@ -170,7 +170,7 @@ function run_dice(; debug = false)
     if !isfile("userData.jld2")
         jldsave("userData.jld2")
     end
-    global userData = jldopen("groupConfig.jld2", "r+")
+    global userData = jldopen("userData.jld2", "r+")
 
     try
         run_bot(diceMain)

@@ -77,8 +77,8 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res
 end
 
-function roll(argstr; groupId = "", kw...)
-    ops, b, p, str = argstr
+function roll(args; groupId = "", userId = "")
+    ops, b, p, str = args
     if ops === nothing
         ops = ""
     end
@@ -127,15 +127,32 @@ function roll(argstr; groupId = "", kw...)
         end
         word = match(r"^([^\s\d]*)", str)
         if word !== nothing
-            skill = word.captures[1]
-            if haskey(skillList, skill)
-                success = skillList[skill]
+            skill = word.captures[1] |> lowercase
+            if haskey(skillAlias, skill)
+                skill = skillAlias[skill]
+            end
+            if haskey(defaultSkill, skill)
+                success = defaultSkill[skill]
+            end
+            if haskey(userData[userId], " select")
+                name = userData[userId][" select"]
+                if haskey(userData[userId][name].skills, skill)
+                    success = userData[userId][name].skills[skill]
+                elseif skill == "闪避" && haskey(userData[userId][name].skills, "敏捷")
+                    success = userData[userId][name].skills["敏捷"] ÷ 2
+                elseif skill == "母语" && haskey(userData[userId][name].skills, "教育")
+                    success = userData[userId][name].skills["教育"]
+                end
             end
         end
         return DiceReply(skillCheck(success, rule, bonus), hidden, true)
     end
     expr, res = rollDice(str)
     return DiceReply("你骰出了 $expr = $res", hidden, true)
+end
+
+function sanCheck(args; groupId = "", userId = "")
+    return DiceReply("WIP.")
 end
 
 const charaTemplate = quote
@@ -182,8 +199,8 @@ randChara = @eval function ()
     $charaTemplate
 end
 
-function charMake(argstr; kw...)
-    m = match(r"^\s*(\d+)", argstr[1])
+function charMake(args; kw...)
+    m = match(r"^\s*(\d+)", args[1])
     num = 1
     if m !== nothing
         num = parse(Int, m.captures[1])
@@ -211,7 +228,7 @@ function botInfo(args; kw...)
         """, false, false)
 end
 
-function botSwitch(argstr; groupId = "", kw...)
+function botSwitch(args; groupId = "", kw...)
     if isempty(groupId)
         return noReply
     end
@@ -219,7 +236,7 @@ function botSwitch(argstr; groupId = "", kw...)
         groupConfigs[groupId] = groupDefault
     end
     cp = groupConfigs[groupId]
-    @switch argstr[1] begin
+    @switch args[1] begin
         @case "on"
         if groupConfigs[groupId].isOff
             cp.isOff = false
@@ -245,39 +262,132 @@ function botSwitch(argstr; groupId = "", kw...)
     return noReply
 end
 
-function diceHelp(argstr; kw...)
-    m = match(r"link", argstr[1])
+function diceHelp(args; kw...)
+    m = match(r"link", args[1])
     if m !== nothing
         return DiceReply(helpLinks, false, false)
     end
     return DiceReply(helpText, false, false)
 end
 
-function invNew(argstr; kw...)
+function invNew(args; groupId = "", userId = "") # 新建空白人物
+    str = args[1]
+    m = match(r"(.*)-(.*)", str)
+    if m !== nothing
+        name, skillstr = m.captures
+        name = replace(name, r"^\s*|\s*$" => "")
+    else
+        name = now() |> string
+        skillstr = str
+    end
+
+    path = userId * '/' * name
+    if haskey(userData, path)
+        throw(DiceError("错误，已存在同名角色"))
+    end
+
+    skillstr = replace(skillstr, r"\s" => "")
+    inv = Investigator(now(), Dict())
+    for m in eachmatch(r"([^\d]*)(\d+)", skillstr)
+        skillname = m.captures[1] |> lowercase
+        success = parse(Int, m.captures[2])
+        if haskey(skillAlias, skillname)
+            skillname = skillAlias[skillname]
+        end
+        if haskey(defaultSkill, skillname) && success == defaultSkill[skillname]
+            continue
+        end
+        push!(inv.skills, skillname => success)
+    end
+
+    userData[path] = inv
+    if haskey(userData[userId], " select")
+        delete!(userData[userId], " select")
+    end
+    userData[userId][" select"] = name
+    return DiceReply("你的角色已经刻在悟理球的 DNA 里了。")
+end
+
+function invRename(args; groupId = "", userId = "") # 支持将非当前选择人物卡重命名
+    if !haskey(userData, userId * "/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 .new 创建人物卡"))
+    end
+    name = userData[userId][" select"]
+    newname = replace(args[1], r"^\s*|\s*$" => "")
+    if isempty(newname)
+        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+    end
+    if haskey(userData[userId], newname)
+        throw(DiceError("错误，已存在同名角色"))
+    end
+    userData[userId][newname] = userData[userId][name]
+    delete!(userData[userId], name)
+    delete!(userData[userId], " select")
+    userData[userId][" select"] = newname
+    return DiceReply("从现在开始你就是 $newname 啦！")
+end
+
+function invRemove(args; groupId = "", userId = "")
+    name = replace(args[1], r"^\s*|\s*$" => "")
+    if isempty(name)
+        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+    end
+    if !(haskey(userData, userId) && haskey(userData[userId], name))
+        throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
+    end
+    delete!(userData[userId], name)
+    if haskey(userData[userId], " select") && userData[userId][" select"] == name
+        delete!(userData[userId], " select")
+    end
+    return DiceReply("$name 已从这个世界上清除")
+end
+
+function invSelect(args; groupId = "", userId = "") # 与 invRemove 合并
+    name = replace(args[1], r"^\s*|\s*$" => "")
+    if isempty(name)
+        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+    end
+    if !(haskey(userData, userId) && haskey(userData[userId], name))
+        throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
+    end
+    if haskey(userData[userId], " select") && userData[userId][" select"] == name
+        return DiceReply("你已经是 $name 了，不用再切换了")
+    end
+    delete!(userData[userId], " select")
+    userData[userId][" select"] = name
+    return DiceReply("你现在变成 $name 啦！")
+end
+
+function invLock(args; kw...)
     return DiceReply("WIP.")
 end
 
-function invRename(argstr; kw...)
+function invList(args; groupId = "", userId = "") # 支持按照编号删除
+    select_str = "当前未选定任何角色"
+    list_str = "角色卡列表为空"
+    if haskey(userData, userId)
+        if haskey(userData[userId], " select")
+            name = userData[userId][" select"]
+            select_str = "当前角色：$name"
+        end
+        list_temp = ""
+        for name ∈ keys(userData[userId])
+            if name[1] != ' '
+                list_temp = list_temp * name * '\n'
+            end
+        end
+        if !isempty(list_temp)
+            list_str = "备选角色：\n" * list_temp
+        end
+    end
+    return DiceReply(select_str * '\n' * "———————————————————————————————\n" * list_str)
+end
+
+function skillShow(args; kw...)
     return DiceReply("WIP.")
 end
 
-function invRemove(argstr; kw...)
-    return DiceReply("WIP.")
-end
-
-function invLock(argstr; kw...)
-    return DiceReply("WIP.")
-end
-
-function invList(argstr; kw...)
-    return DiceReply("WIP.")
-end
-
-function skillShow(argstr; kw...)
-    return DiceReply("WIP.")
-end
-
-function skillSet(argstr; kw...)
+function skillSet(args; kw...)
     return DiceReply("WIP.")
 end
 
@@ -291,7 +401,7 @@ function getJrrpSeed()
     return parse(UInt64, dataJSON.data[1], base = 16)
 end
 
-function jrrp(argstr; userId = "", kw...)
+function jrrp(args; userId = "", kw...)
     date = today() |> string
     if haskey(jrrpCache, date)
         seed = jrrpCache[date]

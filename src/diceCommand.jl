@@ -107,8 +107,8 @@ function roll(args; groupId = "", userId = "")
 
     if check
         rule = groupDefault.rcRule
-        if !isempty(groupId) && haskey(groupConfigs, groupId)
-            rule = groupConfigs[groupId].rcRule
+        if !isempty(groupId) && haskey(groupData, groupId)
+            rule = groupData[groupId].rcRule
         end
         if pop
             rule = :pop
@@ -232,31 +232,31 @@ function botSwitch(args; groupId = "", kw...)
     if isempty(groupId)
         return noReply
     end
-    if !haskey(groupConfigs, groupId)
-        groupConfigs[groupId] = groupDefault
+    if !haskey(groupData, groupId)
+        groupData[groupId] = groupDefault
     end
-    cp = groupConfigs[groupId]
+    cp = groupData[groupId]
     @switch args[1] begin
         @case "on"
-        if groupConfigs[groupId].isOff
+        if groupData[groupId].isOff
             cp.isOff = false
-            delete!(groupConfigs, groupId)
-            groupConfigs[groupId] = cp
+            delete!(groupData, groupId)
+            groupData[groupId] = cp
             return DiceReply("悟理球出现了！")
         end
         return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
         @case "off"
-        if groupConfigs[groupId].isOff
+        if groupData[groupId].isOff
             return noReply
         end
         cp.isOff = true
-        delete!(groupConfigs, groupId)
-        groupConfigs[groupId] = cp
+        delete!(groupData, groupId)
+        groupData[groupId] = cp
         return DiceReply("悟理球不知道哪里去了~")
         @case "exit"
         sendMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
         leaveChat(chat_id = parse(Int, groupId))
-        delete!(groupConfigs, groupId)
+        delete!(groupData, groupId)
         return noReply
     end
     return noReply
@@ -380,7 +380,7 @@ function invList(args; groupId = "", userId = "") # 支持按照编号删除
             list_str = "备选角色：\n" * list_temp
         end
     end
-    return DiceReply(select_str * '\n' * "———————————————————————————————\n" * list_str)
+    return DiceReply(select_str * '\n' * "—————————————————\n" * list_str)
 end
 
 function skillShow(args; kw...)

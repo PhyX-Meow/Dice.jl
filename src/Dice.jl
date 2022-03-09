@@ -106,7 +106,7 @@ function diceMain(msg)
     userId = msg.message.from.id |> string
     if msg.message.chat.type ∈ ["group", "supergroup"]
         chatType = :group
-        ignore = haskey(groupConfigs, groupId) ? groupConfigs[groupId].isOff : groupDefault.isOff
+        ignore = haskey(groupData, groupId) ? groupData[groupId].isOff : groupDefault.isOff
     elseif msg.message.chat.type == "private"
         chatType = :private
         ignore = false
@@ -159,10 +159,10 @@ function run_dice(; debug = false)
         debug_flag = true
     end
 
-    if !isfile("groupConfig.jld2")
-        jldsave("groupConfig.jld2")
+    if !isfile("groupData.jld2")
+        jldsave("groupData.jld2")
     end
-    global groupConfigs = jldopen("groupConfig.jld2", "r+")
+    global groupData = jldopen("groupData.jld2", "r+")
     if !isfile("jrrpCache.jld2")
         jldsave("jrrpCache.jld2")
     end
@@ -175,7 +175,7 @@ function run_dice(; debug = false)
     try
         run_bot(diceMain)
     finally
-        Base.close(groupConfigs)
+        Base.close(groupData)
         Base.close(jrrpCache)
         Base.close(userData)
     end

@@ -220,7 +220,7 @@ const cmdList = [
 const helpText = """
     Dice Julian, made by 悟理(@phyxmeow).
     Version $diceVersion
-    ———————————————————————————————
+    —————————————————
     目前可用的指令列表：
     .help
     .bot [on/off/exit]

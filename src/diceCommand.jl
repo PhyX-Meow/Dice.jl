@@ -427,7 +427,7 @@ function skillSet(args; groupId = "", userId = "")
     name = userData[userId][" select"]
     inv = userData[userId][name]
     text = "$name 的技能值变化："
-    for m ∈ eachmatch(r"([^\d]*)([\+\-]?)([\(\)\+\-\d]+)", str)
+    for m ∈ eachmatch(r"([^\d\(\)\+\-]*)([\+\-]?)([d\d\(\)\+\-]+)", str)
         skill = m.captures[1] |> lowercase
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
@@ -455,6 +455,10 @@ function skillSet(args; groupId = "", userId = "")
                 text *= "$base => $res"
             end
         else
+            show(flag)
+            println()
+            show(expr)
+            println()
             text *= "$base $flag$expr => $res"
         end
     end

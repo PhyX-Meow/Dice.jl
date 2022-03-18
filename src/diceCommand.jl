@@ -447,6 +447,7 @@ function skillSet(args; groupId = "", userId = "")
             res = base - res
         end
         res = max(0, res)
+        inv.skills[skill] = res
         if isempty(flag)
             if match(r"[d\+\-]", expr) !== nothing
                 text *= "$base => $expr = $res"

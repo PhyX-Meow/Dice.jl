@@ -136,12 +136,9 @@ function roll(args; groupId = "", userId = "")
             end
             if haskey(userData[userId], " select")
                 name = userData[userId][" select"]
-                if haskey(userData[userId][name].skills, skill)
-                    success = userData[userId][name].skills[skill]
-                elseif skill == "闪避" && haskey(userData[userId][name].skills, "敏捷")
-                    success = userData[userId][name].skills["敏捷"] ÷ 2
-                elseif skill == "母语" && haskey(userData[userId][name].skills, "教育")
-                    success = userData[userId][name].skills["教育"]
+                inv = userData[userId][name]
+                if haskey(inv.skills, skill)
+                    success = inv.skills[skill]
                 end
             end
         end
@@ -299,6 +296,12 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         end
         push!(inv.skills, skillname => success)
     end
+    if haskey(inv.skills, "敏捷") && !haskey(inv.skills, "闪避")
+        push!(inv.skills, "闪避" => inv.skills["敏捷"] ÷ 2)
+    end
+    if haskey(inv.skills, "教育") && !haskey(inv.skills, "母语")
+        push!(inv.skills, "教育" => inv.skills["母语"])
+    end
 
     userData[path] = inv
     if haskey(userData[userId], " select")
@@ -309,7 +312,7 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
 end
 
 function invRename(args; groupId = "", userId = "") # 支持将非当前选择人物卡重命名
-    if !haskey(userData, userId * "/ select")
+    if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .new 创建人物卡"))
     end
     name = userData[userId][" select"]
@@ -383,8 +386,28 @@ function invList(args; groupId = "", userId = "") # 支持按照编号删除
     return DiceReply(select_str * '\n' * "—————————————————\n" * list_str)
 end
 
-function skillShow(args; kw...)
-    return DiceReply("WIP.")
+function skillShow(args; groupId = "", userId = "")
+    if !haskey(userData, "$userId/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 .new 创建人物卡"))
+    end
+    str = args[1]
+    word = match(r"^([^\s\d]*)", str)
+    name = userData[userId][" select"]
+    if word !== nothing
+        skill = word.captures[1] |> lowercase
+        if haskey(skillAlias, skill)
+            skill = skillAlias[skill]
+        end
+        inv = userData[userId][name]
+        success = 1
+        if haskey(inv, skill)
+            success = inv[skill]
+        elseif haskey(defaultSkill, skill)
+            success = defaultSkill[skill]
+        end
+        return DiceReply("$name 的 $skill：$success")
+    end
+    return DiceReply("显示所有技能值的功能还木有写出来...")
 end
 
 function skillSet(args; kw...)

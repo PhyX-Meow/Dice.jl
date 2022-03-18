@@ -400,8 +400,8 @@ function skillShow(args; groupId="", userId="")
         end
         inv = userData[userId][name]
         success = 1
-        if haskey(inv, skill)
-            success = inv[skill]
+        if haskey(inv.skills, skill)
+            success = inv.skills[skill]
         elseif haskey(defaultSkill, skill)
             success = defaultSkill[skill]
         end

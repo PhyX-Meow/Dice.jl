@@ -295,10 +295,10 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
         end
-        if haskey(defaultSkill, skillname) && success == defaultSkill[skillname]
+        if haskey(defaultSkill, skill) && success == defaultSkill[skill]
             continue
         end
-        push!(inv.skills, skillname => success)
+        push!(inv.skills, skill => success)
     end
     if haskey(inv.skills, "敏捷") && !haskey(inv.skills, "闪避")
         push!(inv.skills, "闪避" => inv.skills["敏捷"] ÷ 2)
@@ -455,10 +455,6 @@ function skillSet(args; groupId = "", userId = "")
                 text *= "$base => $res"
             end
         else
-            show(flag)
-            println()
-            show(expr)
-            println()
             text *= "$base $flag$expr => $res"
         end
     end

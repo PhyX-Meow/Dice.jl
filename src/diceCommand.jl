@@ -125,7 +125,7 @@ function roll(args; groupId = "", userId = "")
                 return DiceReply(skillCheck(success, rule, bonus), hidden, true)
             end
         end
-        word = match(r"^([^\s\d]*)", str)
+        word = match(r"^([^\s\d]+)", str)
         if word !== nothing
             skill = word.captures[1] |> lowercase
             if haskey(skillAlias, skill)
@@ -395,7 +395,7 @@ function skillShow(args; groupId = "", userId = "")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
     str = args[1]
-    word = match(r"^([^\s\d]*)", str)
+    word = match(r"^([^\s\d]+)", str)
     name = userData[userId][" select"]
     if word !== nothing
         skill = word.captures[1] |> lowercase
@@ -408,6 +408,8 @@ function skillShow(args; groupId = "", userId = "")
             success = inv.skills[skill]
         elseif haskey(defaultSkill, skill)
             success = defaultSkill[skill]
+        else
+            throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
         end
         return DiceReply("$name 的 $(skill)：$success")
     end
@@ -455,6 +457,10 @@ function skillSet(args; groupId = "", userId = "")
             text *= "$base $flag$expr => $res"
         end
     end
+
+    inv.savetime = now()
+    delete!(userData[userId], name)
+    userData[userId][name] = inv
     return DiceReply(text)
 end
 

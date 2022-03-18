@@ -38,20 +38,20 @@ const diceDefault = DiceConfig(
             "锵锵锵！大成功出现了！",
             "出现了！是大成功！",
             "大成功！KP快给奖励(盯)",
-            "是大成功诶！快感谢我~"
+            "是大成功诶！快感谢我~",
         ],
         :extreme => [
             "极难成功，干得漂亮~",
             "是极难成功，すごいい！",
             "极难成功！如果是战斗轮就满伤了诶",
-            "极难成功！虽然不是大成功，不过极难成功已经很厉害了"
+            "极难成功！虽然不是大成功，不过极难成功已经很厉害了",
         ],
         :hard => [
             "是困难成功诶",
             "困难成功，运气不错呢~",
             "哎嘿是困难成功",
             "咣当，咣当，困难成功",
-            "是困难成功，sasuga"
+            "是困难成功，sasuga",
         ],
         :regular => [
             "简单的成功了。",
@@ -73,9 +73,9 @@ const diceDefault = DiceConfig(
             "大失败！不过没关系，人类的赞歌就是勇气的赞歌！要相信自己！",
             "大失败！圣人云：骰出大失败才是跑团的乐趣。",
             "大失败！也许这就是命运。",
-            "大失败！正如同宇宙的真实一样，悟理球是残酷且无理性的。"
-        ]
-    )
+            "大失败！正如同宇宙的真实一样，悟理球是残酷且无理性的。",
+        ],
+    ),
 )
 
 mutable struct Investigator
@@ -162,7 +162,7 @@ const defaultSkill = Dict( # 单独处理闪避和母语
     "投掷" => 20,
     "追踪" => 10,
     "鞭" => 5,
-    "动物学" => 1
+    "动物学" => 1,
 )
 
 const skillAlias = Dict(
@@ -190,7 +190,7 @@ const skillAlias = Dict(
     "侦察" => "侦查",
     "剑" => "刀剑",
     "hp" => "体力",
-    "mp" => "魔法"
+    "mp" => "魔法",
 )
 
 const superAdminList = [0xc45c1b20b131d1c8]
@@ -212,9 +212,10 @@ const cmdList = [
     DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
     DiceCmd(:skillShow, r"^st show\s*(.*)", "查询技能值", Set([:group, :private])),
     DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
-    DiceCmd(:sanCheck, r"^sc\s*([\dd\+\-\*]+)/([\dd\+\-\*]+)", "理智检定", Set([:group, :private])),
+    DiceCmd(:sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
+    DiceCmd(:skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
-    DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))
+    DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
 ]
 
 const helpText = """
@@ -327,6 +328,6 @@ const kwList = Dict(
         "普罗休特大哥，我知道了！我并非透过「言语」，而是透过「内心」，理解到大哥的觉悟了！",
         "哟~西，哟西哟西哟西哟西哟西哟西哟西哟西哟西哟西",
         "为什么不是3也不是5，偏偏是4啊",
-        "不准给我踏上阶梯半步！我在上面！而你在下面！"
-    ]
+        "不准给我踏上阶梯半步！我在上面！而你在下面！",
+    ],
 )

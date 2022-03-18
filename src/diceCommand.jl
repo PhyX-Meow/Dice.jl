@@ -14,7 +14,7 @@ end
 function rollDice(str::AbstractString)
     expr = replace(str, r"[^0-9d\(\)\+\-\*/]" => "")
     if isempty(expr)
-        return ("1d100", xdy(1, 100))
+        return ("1d100", rand(1:100))
     end
     if match(r"d\d*d", expr) !== nothing
         throw(DiceError("表达式格式错误，算不出来惹"))
@@ -77,7 +77,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res
 end
 
-function roll(args; groupId = "", userId = "")
+function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple times
     ops, b, p, str = args
     if ops === nothing
         ops = ""
@@ -148,8 +148,80 @@ function roll(args; groupId = "", userId = "")
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
-function sanCheck(args; groupId = "", userId = "")
+function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/躁狂症
     return DiceReply("WIP.")
+    if !haskey(userData, "$userId/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+    end
+    str = args[1]
+    str = replace(str, r"\s" => "")
+    m = match(r"([d\d\+\-\*]+)/([d\d\+\-\*]+)", str)
+    if m === nothing
+        throw(DiceError("表达式格式错误，算不出来惹"))
+    end
+    succ, fail = m.captures
+
+    name = userData[userId][" select"]
+    inv = userData[userId][name]
+    if haskey(inv.skills, "理智")
+        san = inv.skills["理智"]
+    elseif haskey(inv.skills, "意志")
+        san = inv.skills["意志"]
+    else
+        throw(DiceError("错误，没有找到当前角色的理智值，是不是已经疯了？"))
+    end
+    if san == 0
+        return DiceReply("不用检定了，$name 已经永久疯狂了。")
+    end
+    sanMax = 99
+    if haskey(inv.skills, "克苏鲁神话")
+        sanMax -= inv.skills["克苏鲁神话"]
+    end
+
+    fate = rand(1:100)
+end
+
+function skillEn(args; groupId = "", userId = "")
+    if !haskey(userData, "$userId/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+    end
+    str = args[1]
+    word = match(r"^([^\s\d]+)", str)
+    name = userData[userId][" select"]
+    if word === nothing
+        throw(DiceError("不知道你要成长啥子诶……"))
+    end
+    skill = word.captures[1] |> lowercase
+    if haskey(skillAlias, skill)
+        skill = skillAlias[skill]
+    end
+    inv = userData[userId][name]
+    if haskey(inv.skills, skill)
+        success = inv.skills[skill]
+    elseif haskey(defaultSkill, skill)
+        success = defaultSkill[skill]
+    else
+        throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
+    end
+    fate = rand(1:100)
+    if fate <= success
+        return DiceReply("1d100 = $(fate)/$(success)\n失败了，什么事情都没有发生.jpg")
+    end
+
+    up = rand(1:10)
+    inv.skills[skill] = success + up
+
+    inv.savetime = now()
+    delete!(userData[userId], name)
+    userData[userId][name] = inv
+
+    return DiceReply(
+        """
+        1d100 = $(fate)/$(success)
+        成功！$name 的 $skill 成长：
+        1d10 = $(up)，$success => $(success+up)
+        """,
+    )
 end
 
 const charaTemplate = quote
@@ -403,7 +475,6 @@ function skillShow(args; groupId = "", userId = "")
             skill = skillAlias[skill]
         end
         inv = userData[userId][name]
-        success = 1
         if haskey(inv.skills, skill)
             success = inv.skills[skill]
         elseif haskey(defaultSkill, skill)
@@ -416,18 +487,21 @@ function skillShow(args; groupId = "", userId = "")
     return DiceReply("显示所有技能值的功能还木有写出来...")
 end
 
-function skillSet(args; groupId = "", userId = "")
+function skillSet(args; groupId = "", userId = "") # Add .st rm
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
+
     str = replace(args[2], r"\s" => "")
     if args[1] === nothing && length(str) >= 32
         return DiceReply("悟理球的 .st 指令为修改当前人物卡的技能值，如果要新建人物卡请使用 .new，如果确认要一次性修改大量技能值请使用 .st force")
     end
+
     name = userData[userId][" select"]
     inv = userData[userId][name]
+
     text = "$name 的技能值变化："
-    for m ∈ eachmatch(r"([^\d\(\)\+\-]*)([\+\-]?)([d\d\(\)\+\-]+)", str)
+    for m ∈ eachmatch(r"([^\d\(\)\+\-\*]*)([\+\-]?)([d\d\(\)\+\-\*]+)", str)
         skill = m.captures[1] |> lowercase
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
@@ -462,6 +536,7 @@ function skillSet(args; groupId = "", userId = "")
     inv.savetime = now()
     delete!(userData[userId], name)
     userData[userId][name] = inv
+
     return DiceReply(text)
 end
 

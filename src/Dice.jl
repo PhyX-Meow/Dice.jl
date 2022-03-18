@@ -22,7 +22,11 @@ function diceReply(msg, text::AbstractString; ref = true, pvt = false)
         try
             sendMessage(text = text, chat_id = msg.message.from.id)
         catch err
-            sendMessage(text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start", chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+            sendMessage(
+                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
+                chat_id = msg.message.chat.id,
+                reply_to_message_id = msg.message.message_id,
+            )
         end
     elseif ref
         sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
@@ -41,7 +45,11 @@ function diceReplyLagacy(msg, reply::DiceReply)
                 sendMessage(text = tt, chat_id = msg.message.from.id)
             end
         catch err
-            sendMessage(text = "错误，悟理球没有私聊权限，请先私聊向悟理球发送 /start", chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+            sendMessage(
+                text = "错误，悟理球没有私聊权限，请先私聊向悟理球发送 /start",
+                chat_id = msg.message.chat.id,
+                reply_to_message_id = msg.message.message_id,
+            )
         end
     elseif reply.ref
         for tt ∈ reply.text

@@ -17,7 +17,7 @@ function rollDice(str::AbstractString)
         return ("1d100", xdy(1, 100))
     end
     if match(r"d\d*d", expr) !== nothing
-        throw(DiceError("表达式格式错误，看看是不是两个xdy贴在一起了？"))
+        throw(DiceError("表达式格式错误，算不出来惹"))
     end
     expr = replace(expr, r"(?<!\d)d" => "1d")
     expr = replace(expr, r"d(?!\d)" => "d100")
@@ -77,7 +77,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res
 end
 
-function roll(args; groupId="", userId="")
+function roll(args; groupId = "", userId = "")
     ops, b, p, str = args
     if ops === nothing
         ops = ""
@@ -148,7 +148,7 @@ function roll(args; groupId="", userId="")
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
-function sanCheck(args; groupId="", userId="")
+function sanCheck(args; groupId = "", userId = "")
     return DiceReply("WIP.")
 end
 
@@ -218,14 +218,18 @@ function botStart(args; kw...)
 end
 
 function botInfo(args; kw...)
-    return DiceReply("""
+    return DiceReply(
+        """
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion
         输入 .help 获取指令列表
-        """, false, false)
+        """,
+        false,
+        false,
+    )
 end
 
-function botSwitch(args; groupId="", kw...)
+function botSwitch(args; groupId = "", kw...)
     if isempty(groupId)
         return noReply
     end
@@ -251,8 +255,8 @@ function botSwitch(args; groupId="", kw...)
         groupData[groupId] = cp
         return DiceReply("悟理球不知道哪里去了~")
         @case "exit"
-        sendMessage(text="悟理球从这里消失了", chat_id=parse(Int, groupId))
-        leaveChat(chat_id=parse(Int, groupId))
+        sendMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
+        leaveChat(chat_id = parse(Int, groupId))
         delete!(groupData, groupId)
         return noReply
     end
@@ -267,7 +271,7 @@ function diceHelp(args; kw...)
     return DiceReply(helpText, false, false)
 end
 
-function invNew(args; groupId="", userId="") # 新建空白人物
+function invNew(args; groupId = "", userId = "") # 新建空白人物
     str = args[1]
     m = match(r"(.*)-(.*)", str)
     if m !== nothing
@@ -285,11 +289,11 @@ function invNew(args; groupId="", userId="") # 新建空白人物
 
     skillstr = replace(skillstr, r"\s" => "")
     inv = Investigator(now(), Dict())
-    for m in eachmatch(r"([^\d]*)(\d+)", skillstr)
-        skillname = m.captures[1] |> lowercase
+    for m ∈ eachmatch(r"([^\d]*)(\d+)", skillstr)
+        skill = m.captures[1] |> lowercase
         success = parse(Int, m.captures[2])
-        if haskey(skillAlias, skillname)
-            skillname = skillAlias[skillname]
+        if haskey(skillAlias, skill)
+            skill = skillAlias[skill]
         end
         if haskey(defaultSkill, skillname) && success == defaultSkill[skillname]
             continue
@@ -311,7 +315,7 @@ function invNew(args; groupId="", userId="") # 新建空白人物
     return DiceReply("你的角色已经刻在悟理球的 DNA 里了。")
 end
 
-function invRename(args; groupId="", userId="") # 支持将非当前选择人物卡重命名
+function invRename(args; groupId = "", userId = "") # 支持将非当前选择人物卡重命名
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -330,7 +334,7 @@ function invRename(args; groupId="", userId="") # 支持将非当前选择人物
     return DiceReply("从现在开始你就是 $newname 啦！")
 end
 
-function invRemove(args; groupId="", userId="")
+function invRemove(args; groupId = "", userId = "")
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
@@ -345,7 +349,7 @@ function invRemove(args; groupId="", userId="")
     return DiceReply("$name 已从这个世界上清除")
 end
 
-function invSelect(args; groupId="", userId="") # 与 invRemove 合并
+function invSelect(args; groupId = "", userId = "") # 与 invRemove 合并
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
@@ -365,7 +369,7 @@ function invLock(args; kw...)
     return DiceReply("WIP.")
 end
 
-function invList(args; groupId="", userId="") # 支持按照编号删除
+function invList(args; groupId = "", userId = "") # 支持按照编号删除
     select_str = "当前未选定任何角色"
     list_str = "角色卡列表为空"
     if haskey(userData, userId)
@@ -386,7 +390,7 @@ function invList(args; groupId="", userId="") # 支持按照编号删除
     return DiceReply(select_str * '\n' * "—————————————————\n" * list_str)
 end
 
-function skillShow(args; groupId="", userId="")
+function skillShow(args; groupId = "", userId = "")
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -405,26 +409,66 @@ function skillShow(args; groupId="", userId="")
         elseif haskey(defaultSkill, skill)
             success = defaultSkill[skill]
         end
-        return DiceReply("$name 的 $(skill): $success")
+        return DiceReply("$name 的 $(skill)：$success")
     end
     return DiceReply("显示所有技能值的功能还木有写出来...")
 end
 
-function skillSet(args; kw...)
-    return DiceReply("WIP.")
+function skillSet(args; groupId = "", userId = "")
+    if !haskey(userData, "$userId/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+    end
+    str = replace(args[2], r"\s" => "")
+    if isempty(args[1]) && length(str) >= 32
+        return DiceReply("悟理球的 .st 指令为修改当前人物卡的技能值，如果要新建人物卡请使用 .new，如果确认要一次性修改大量技能值请使用 .st force")
+    end
+    name = userData[userId][" select"]
+    inv = userData[userId][name]
+    text = "$name 的技能值变化："
+    for m ∈ eachmatch(r"([^\d]*)([\+\-]?)([\(\)\+\-\d]+)", str)
+        skill = m.captures[1] |> lowercase
+        if haskey(skillAlias, skill)
+            skill = skillAlias[skill]
+        end
+        text *= '\n' * name * '\t'
+        expr, res = rollDice(m.captures[3])
+        base = 0
+        if haskey(inv.skills, skill)
+            base = inv.skills[skill]
+        elseif haskey(defaultSkill, skill)
+            base = defaultSkill[skill]
+        end
+        flag = m.captures[2]
+        if flag == "+"
+            res = base + res
+        elseif flag == "-"
+            res = base - res
+        end
+        res = max(0, res)
+        if isempty(flag)
+            if match(expr, r"[d\+\-]") !== nothing
+                text *= "$base => $expr = $res"
+            else
+                text *= "$base => $res"
+            end
+        else
+            text *= "$base $flag$expr => $res"
+        end
+    end
+    return DiceReply(text)
 end
 
 function getJrrpSeed()
-    resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout=1)
+    resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
     # 加入超时报错
     dataJSON = resp.body |> String |> JSON3.read
     if !dataJSON.success
         throw(DiceError("今日人品获取失败"))
     end
-    return parse(UInt64, dataJSON.data[1], base=16)
+    return parse(UInt64, dataJSON.data[1], base = 16)
 end
 
-function jrrp(args; userId="", kw...)
+function jrrp(args; userId = "", kw...)
     date = today() |> string
     if haskey(jrrpCache, date)
         seed = jrrpCache[date]

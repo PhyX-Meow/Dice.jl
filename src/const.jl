@@ -211,7 +211,7 @@ const cmdList = [
     DiceCmd(:invList, r"^pc(?: list)?\s*$", "当前人物卡列表", Set([:group, :private])),
     DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
     DiceCmd(:skillShow, r"^st show\s*(.*)", "查询技能值", Set([:group, :private])),
-    DiceCmd(:skillSet, r"^st( force)\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
     DiceCmd(:sanCheck, r"^sc\s*([\dd\+\-\*]+)/([\dd\+\-\*]+)", "理智检定", Set([:group, :private])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private]))

@@ -17,7 +17,7 @@ struct DiceReply
     ref::Bool
 end
 DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply([str], hidden, ref)
-DiceReply(str::AbstractString) = DiceReply(str, false, true)
+DiceReply(str::AbstractString) = DiceReply([str], false, true)
 const noReply = DiceReply(AbstractString[], false, false)
 
 struct DiceConfig

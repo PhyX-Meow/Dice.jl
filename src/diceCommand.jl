@@ -313,7 +313,7 @@ end
 
 function invRename(args; groupId="", userId="") # 支持将非当前选择人物卡重命名
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .new 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
     name = userData[userId][" select"]
     newname = replace(args[1], r"^\s*|\s*$" => "")
@@ -388,7 +388,7 @@ end
 
 function skillShow(args; groupId="", userId="")
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .new 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
     str = args[1]
     word = match(r"^([^\s\d]*)", str)

@@ -419,7 +419,7 @@ function skillSet(args; groupId = "", userId = "")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
     str = replace(args[2], r"\s" => "")
-    if isempty(args[1]) && length(str) >= 32
+    if args[1] !== nothing && length(str) >= 32
         return DiceReply("悟理球的 .st 指令为修改当前人物卡的技能值，如果要新建人物卡请使用 .new，如果确认要一次性修改大量技能值请使用 .st force")
     end
     name = userData[userId][" select"]

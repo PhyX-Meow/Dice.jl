@@ -430,7 +430,7 @@ function skillSet(args; groupId = "", userId = "")
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
         end
-        text *= '\n' * name * '\t'
+        text *= '\n' * skill * '\t'
         expr, res = rollDice(m.captures[3])
         base = 0
         if haskey(inv.skills, skill)

@@ -193,6 +193,25 @@ const skillAlias = Dict(
     "mp" => "魔法",
 )
 
+const charaTemplate = quote
+    """
+    力量:$str 敏捷:$dex 意志:$pow
+    体质:$con 外貌:$app 教育:$edu
+    体型:$siz 智力:$int 幸运:$luc
+    HP:$hp MP:$mp DB:$db MOV:$mov
+    总和:$total/$luc_total
+    """
+end
+
+const tiList = [
+]
+
+const liList = [
+]
+
+const gasList = [
+]
+
 const superAdminList = [0xc45c1b20b131d1c8]
 const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
@@ -214,6 +233,9 @@ const cmdList = [
     DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
     DiceCmd(:sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
     DiceCmd(:skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
+    DiceCmd(:randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
+    DiceCmd(:randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
+    DiceCmd(:randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
 ]

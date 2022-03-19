@@ -11,7 +11,7 @@ function xdy(num::Integer, face::Integer)
     rand(1:face, num) |> sum
 end
 
-function rollDice(str::AbstractString)
+function rollDice(str::AbstractString; lead = false)
     expr = replace(str, r"[^0-9d\(\)\+\-\*/]" => "")
     if isempty(expr)
         return ("1d100", rand(1:100))
@@ -21,7 +21,11 @@ function rollDice(str::AbstractString)
     end
     expr = replace(expr, r"(?<!\d)d" => "1d")
     expr = replace(expr, r"d(?!\d)" => "d100")
-    expr_ = replace(expr, r"(\d*)d(\d*)" => s"xdy(\1,\2)", "/" => "÷")
+    if !lead
+        expr_ = replace(expr, r"(\d+)d(\d+)" => s"xdy(\1,\2)", "/" => "÷")
+    else
+        expr_ = replace(expr, r"(\d+)d(\d+)" => s"\1*\2", "/" => "÷")
+    end
     try
         return (expr, Meta.parse(expr_) |> eval)
     catch err
@@ -81,8 +85,8 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     if check == :na
         throw(DiceError("错误，找不到对应的规则"))
     end
-    res *= "/$(success)。" * rand(diceDefault.customReply[check])
-    return res
+    res *= "/$(success)。"
+    return res, check # 重构这里的代码
 end
 
 function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple times
@@ -130,7 +134,9 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
             m = match(p, str)
             if m !== nothing
                 success = parse(Int, m.captures[1])
-                return DiceReply(skillCheck(success, rule, bonus), hidden, true)
+                res, check = skillCheck(success, rule, bonus)
+                res *= rand(diceDefault.customReply[check])
+                return DiceReply(res, hidden, true)
             end
         end
         word = match(r"^([^\s\d]+)", str)
@@ -150,14 +156,15 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
                 end
             end
         end
-        return DiceReply(skillCheck(success, rule, bonus), hidden, true)
+        res, check = skillCheck(success, rule, bonus)
+        res *= rand(diceDefault.customReply[check]) # 重构此处代码
+        return DiceReply(res, hidden, true)
     end
     expr, res = rollDice(str)
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
 function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/躁狂症
-    return DiceReply("WIP.")
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -181,12 +188,41 @@ function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/�
     if san == 0
         return DiceReply("不用检定了，$name 已经永久疯狂了。")
     end
+
     sanMax = 99
     if haskey(inv.skills, "克苏鲁神话")
         sanMax -= inv.skills["克苏鲁神话"]
     end
 
-    fate = rand(1:100)
+    res, check = skillCheck(san, :book, 0)
+    res = "$name 的理智检定：" * res
+    if check == :critical
+        expr, loss = rollDice(succ)
+        res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
+    elseif check == :fumble
+        expr, loss = rollDice(fail; lead = true)
+        res *= "大失败！\n朝闻道，夕死可矣。\n"
+    elseif check == :failure
+        expr, loss = rollDice(fail)
+        res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
+    else
+        expr, loss = rollDice(succ)
+        res *= "成功\n真正的调查员无畏觅见真实！可是捱过了这次，还能捱过几次呢？\n"
+    end
+    san = max(0, san - loss)
+    res *= "理智损失：$(expr) = $(loss)，当前剩余理智：$(san)/$(sanMax)"
+    if san == 0
+        res *= "\n调查员已陷入永久疯狂。"
+    elseif loss >= 5
+        res *= "\n单次理智损失超过 5 点，调查员已陷入临时性疯狂，使用 .ti/.li 可以获取随机疯狂发作症状"
+    end
+
+    inv.skills["理智"] = san
+    inv.savetime = now()
+    delete!(userData[userId], name)
+    userData[userId][name] = inv
+
+    return DiceReply(res)
 end
 
 function skillEn(args; groupId = "", userId = "")
@@ -218,7 +254,6 @@ function skillEn(args; groupId = "", userId = "")
 
     up = rand(1:10)
     inv.skills[skill] = success + up
-
     inv.savetime = now()
     delete!(userData[userId], name)
     userData[userId][name] = inv
@@ -230,16 +265,6 @@ function skillEn(args; groupId = "", userId = "")
         1d10 = $(up)，$success => $(success+up)
         """,
     )
-end
-
-const charaTemplate = quote
-    """
-    力量:$str 敏捷:$dex 意志:$pow
-    体质:$con 外貌:$app 教育:$edu
-    体型:$siz 智力:$int 幸运:$luc
-    HP:$hp MP:$mp DB:$db MOV:$mov
-    总和:$total/$luc_total
-    """
 end
 
 randChara = @eval function ()
@@ -546,6 +571,18 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
     userData[userId][name] = inv
 
     return DiceReply(text)
+end
+
+function randomTi(args; kw...)
+    return noReply
+end
+
+function randomLi(args; kw...)
+    return noReply
+end
+
+function randomGas(args; kw...)
+    return noReply
 end
 
 function getJrrpSeed()

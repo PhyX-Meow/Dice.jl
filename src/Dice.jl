@@ -134,16 +134,15 @@ function diceMain(msg)
             try
                 reply = @eval $(cmd.func)($(m.captures); groupId = $groupId, userId = $userId)
             catch err
-                if debug_flag
-                    showerror(stdout, err)
-                    println()
-                    display(stacktrace(catch_backtrace()))
-                    println()
-                end
-
                 if err isa DiceError
                     reply = DiceReply(err.text)
                 else
+                    if debug_flag
+                        showerror(stdout, err)
+                        println()
+                        display(stacktrace(catch_backtrace()))
+                        println()
+                    end
                     reply = DiceReply("遇到了触及知识盲区的错误.jpg")
                 end
             end
@@ -154,11 +153,6 @@ function diceMain(msg)
         return diceReplyLagacy(msg, reply)
     end
     return nothing
-end
-
-function testMain(msg)
-    show(msg)
-    println()
 end
 
 function run_dice(; debug = false)

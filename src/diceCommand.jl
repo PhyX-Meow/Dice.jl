@@ -22,7 +22,15 @@ function rollDice(str::AbstractString)
     expr = replace(expr, r"(?<!\d)d" => "1d")
     expr = replace(expr, r"d(?!\d)" => "d100")
     expr_ = replace(expr, r"(\d*)d(\d*)" => s"xdy(\1,\2)", "/" => "÷")
-    return (expr, Meta.parse(expr_) |> eval)
+    try
+        return (expr, Meta.parse(expr_) |> eval)
+    catch err
+        if err isa Base.Meta.ParseError
+            throw(DiceError("表达式格式错误，算不出来惹"))
+        else
+            rethrow()
+        end
+    end
 end
 
 function skillCheck(success::Int, rule::Symbol, bonus::Int)

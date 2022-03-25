@@ -409,7 +409,7 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         push!(inv.skills, "闪避" => inv.skills["敏捷"] ÷ 2)
     end
     if haskey(inv.skills, "教育") && !haskey(inv.skills, "母语")
-        push!(inv.skills, "教育" => inv.skills["母语"])
+        push!(inv.skills, "母语" => inv.skills["教育"])
     end
 
     userData[path] = inv

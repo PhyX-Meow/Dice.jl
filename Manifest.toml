@@ -2,6 +2,7 @@
 
 julia_version = "1.7.2"
 manifest_format = "2.0"
+project_hash = "1f1b5add973609f58ebfbeb53a603f4891838e5a"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -27,9 +28,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "80ced645013a5dbdc52cf70329399c35ce007fae"
+git-tree-sha1 = "9267e5f50b0e12fdfd5a2455534345c4cf2c7f7a"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.13.0"
+version = "1.14.0"
 
 [[deps.HTTP]]
 deps = ["Base64", "Dates", "IniFile", "Logging", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
@@ -81,9 +82,9 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[deps.MLStyle]]
-git-tree-sha1 = "594e189325f66e23a8818e5beb11c43bb0141bcd"
+git-tree-sha1 = "e49789e5eb7b2d5577aaea395bfcac769df64bb8"
 uuid = "d8e11817-5142-5d16-987a-aa16d5891078"
-version = "0.4.10"
+version = "0.4.11"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -121,9 +122,9 @@ version = "1.4.1"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "85b5da0fa43588c75bb1ff986493443f821c70b7"
+git-tree-sha1 = "1285416549ccfcdf0c50d4997a94331e88d68413"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.3"
+version = "2.3.1"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]

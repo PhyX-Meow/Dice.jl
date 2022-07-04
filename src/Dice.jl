@@ -40,9 +40,9 @@ function isQQFriend(ws; userId)
 end
 
 function diceReplyLagacy(ws, msg, reply::DiceReply)
-    if isempty(reply.text) || length(reply.text) > 512
-        WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
-    end
+    isempty(reply.text) && return nothing
+    length(reply.text) > 512 && WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
+
     if reply.hidden
         if isQQFriend(msg.user_id)
             for tt ∈ reply.text

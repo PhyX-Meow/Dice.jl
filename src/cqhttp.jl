@@ -1,9 +1,10 @@
-function run_bot(f::Function, cq_server::AbstractString, port::Integer)
-    WebSockets.open("ws://$cq_server:$port") do ws
-        for str in ws
-            json_str = JSON3.read(str)
+function run_bot(f::Function)
+    cq_ws_server = get(ENV, "CQ_WS_SERVER", "")
+    WebSockets.open(cq_ws_server) do ws
+        for str ∈ ws
+            msg = JSON3.read(str)
             try
-                f(ws, json_str)
+                f(ws, msg)
             catch err
                 @error err
                 if err isa InterruptException

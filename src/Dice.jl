@@ -2,7 +2,6 @@ module Dice
 
 export run_dice
 
-using Telegram, Telegram.API
 using HTTP
 using JLD2
 using JSON3
@@ -13,69 +12,73 @@ using ConfigEnv
 
 include("const.jl")
 include("diceCommand.jl")
+include("cqhttp.jl")
 
-function diceReply(msg, text::AbstractString; ref = true, pvt = false)
-    if isempty(text) || length(text) > 512
-        return nothing
-    end
-    if pvt
-        try
-            sendMessage(text = text, chat_id = msg.message.from.id)
-        catch err
-            sendMessage(
-                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-                chat_id = msg.message.chat.id,
-                reply_to_message_id = msg.message.message_id,
-            )
+function makeReplyJson(msg; text::AbstractString, type::AbstractString = msg.message_type, ref::Bool = false)
+    json_data = Dict(
+        "action" => "send_msg",
+        "params" => Dict(),
+    )
+    json_data["params"]["message_type"] = type
+    if type == "private"
+        json_data["params"]["user_id"] = msg.user_id
+        if ref
+            text = "[CQ:reply,id=$(msg.message_id)]" * text
         end
-    elseif ref
-        sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
-    else
-        sendMessage(text = text, chat_id = msg.message.chat.id)
+    elseif msg.message_type == "group"
+        json_data["params"]["group_id"] = msg.group_id
+        if ref
+            text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.user_id)]" * text
+        end
     end
+    json_data["params"]["message"] = text
+    return JSON3.write(json_data)
 end
 
-function diceReplyLagacy(msg, reply::DiceReply)
+function isQQFriend(ws; userId)
+    return true
+end
+
+function diceReplyLagacy(ws, msg, reply::DiceReply)
     if isempty(reply.text) || length(reply.text) > 512
-        return nothing
+        WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
     end
     if reply.hidden
-        try
+        if isQQFriend(msg.user_id)
             for tt ∈ reply.text
-                sendMessage(text = tt, chat_id = msg.message.from.id)
+                WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
             end
-        catch err
-            sendMessage(
-                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-                chat_id = msg.message.chat.id,
-                reply_to_message_id = msg.message.message_id,
-            )
-        end
-    elseif reply.ref
-        for tt ∈ reply.text
-            sendMessage(text = tt, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+        else
+            WebSockets.send(ws, makeReplyJson(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
         end
     else
         for tt ∈ reply.text
-            sendMessage(text = tt, chat_id = msg.message.chat.id)
+            WebSockets.send(ws, makeReplyJson(msg, text = tt, ref = reply.ref))
         end
     end
 end
 
-function diceMain(msg)
+function handleRequest(ws, msg)
+
+end
+
+function diceMain(ws, msg)
 
     if debug_flag
         show(msg)
         println()
     end
 
-    if !(haskey(msg, :message) && haskey(msg.message, :text))
-        return nothing
-    end
+    !haskey(msg, "post_type") && return nothing
+    msg.post_type == "request" && return handleRequest(ws, msg)
+    msg.post_type != "message" && return nothing
+    msg.message_type == "group" && msg.sub_type != "normal" && return nothing
+    msg.message_type == "private" && msg.sub_type ∉ ["firend", "group"] && return nothing
 
-    str = msg.message.text
+    str = msg.raw_message
     if haskey(kwList, str)
-        return sendMessage(text = rand(kwList[str]), chat_id = chatId)
+        data = makeReplyJson(msg, text = rand(kwList[str]))
+        return WebSockets.send(ws, data)
     end
 
 
@@ -84,33 +87,32 @@ function diceMain(msg)
     end
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
-    if hash(msg.message.from.id) ∈ superAdminList
+    if hash(msg.user_id) ∈ superAdminList
         m = match(r"eval\s(.*)", str)
         if m !== nothing
-            diceReplyLagacy(msg, DiceReply("警告！你在执行一个超级指令！", false, true))
+            diceReplyLagacy(ws, msg, DiceReply("警告！你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]
             ret = nothing
             try
                 ret = superCommand |> Meta.parse |> eval
             catch err
-                return diceReplyLagacy(msg, DiceReply("执行失败", false, false))
+                return diceReplyLagacy(ws, msg, DiceReply("执行失败", false, false))
             end
-            return diceReplyLagacy(msg, DiceReply("执行结果：$ret", false, false))
+            return diceReplyLagacy(ws, msg, DiceReply("执行结果：$ret", false, false))
         end
     end
 
     ignore = true
-    chatType = :na
-    groupId = msg.message.chat.id |> string
-    userId = msg.message.from.id |> string
-    if msg.message.chat.type ∈ ["group", "supergroup"]
+    groupId = ""
+    userId = msg.user_id |> string
+    if msg.message_type == "group"
         chatType = :group
+        groupId = msg.group_id |> string
         ignore = haskey(groupData, groupId) ? groupData[groupId].isOff : groupDefault.isOff
-    elseif msg.message.chat.type == "private"
+    elseif msg.message_type == "private"
         chatType = :private
         ignore = false
-    end
-    if chatType == :na
+    else
         return nothing
     end
 
@@ -141,7 +143,7 @@ function diceMain(msg)
         end
     end
     if !ignore
-        return diceReplyLagacy(msg, reply)
+        return diceReplyLagacy(ws, msg, reply)
     end
     return nothing
 end
@@ -172,17 +174,6 @@ function run_dice(; debug = false)
         Base.close(jrrpCache)
         Base.close(userData)
     end
-end
-
-function julia_main()::Cint
-    dotenv()
-    try
-        run_dice()
-    catch
-        Base.invokelatest(Base.display_error, Base.catch_stack())
-        return 1
-    end
-    return 0
 end
 
 end # module

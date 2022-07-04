@@ -213,6 +213,7 @@ const gasList = [
 ]
 
 const superAdminList = [0xc45c1b20b131d1c8]
+const superAdminQQList = [0x2151adb7df36d127]
 const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
     DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),

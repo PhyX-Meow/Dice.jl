@@ -25,7 +25,7 @@ function makeReplyJson(msg; text::AbstractString, type::AbstractString = msg.mes
         if ref
             text = "[CQ:reply,id=$(msg.message_id)]" * text
         end
-    elseif msg.message_type == "group"
+    elseif type == "group"
         json_data["params"]["group_id"] = msg.group_id
         if ref
             text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.user_id)]" * text
@@ -73,7 +73,7 @@ function diceMain(ws, msg)
     msg.post_type == "request" && return handleRequest(ws, msg)
     msg.post_type != "message" && return nothing
     msg.message_type == "group" && msg.sub_type != "normal" && return nothing
-    msg.message_type == "private" && msg.sub_type ∉ ["firend", "group"] && return nothing
+    msg.message_type == "private" && msg.sub_type ∉ ["friend", "group"] && return nothing
 
     str = msg.raw_message
     if haskey(kwList, str)
@@ -87,7 +87,7 @@ function diceMain(ws, msg)
     end
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
-    if hash(msg.user_id) ∈ superAdminList
+    if hash(msg.user_id) ∈ superAdminQQList
         m = match(r"eval\s(.*)", str)
         if m !== nothing
             diceReplyLagacy(ws, msg, DiceReply("警告！你在执行一个超级指令！", false, true))

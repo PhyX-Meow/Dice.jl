@@ -36,7 +36,7 @@ function diceReply(msg, text::AbstractString; ref = true, pvt = false)
 end
 
 function diceReplyLagacy(msg, reply::DiceReply)
-    if isempty(reply.text)
+    if isempty(reply.text) || length(reply.text) > 512
         return nothing
     end
     if reply.hidden
@@ -46,7 +46,7 @@ function diceReplyLagacy(msg, reply::DiceReply)
             end
         catch err
             sendMessage(
-                text = "错误，悟理球没有私聊权限，请先私聊向悟理球发送 /start",
+                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
                 chat_id = msg.message.chat.id,
                 reply_to_message_id = msg.message.message_id,
             )
@@ -62,29 +62,20 @@ function diceReplyLagacy(msg, reply::DiceReply)
     end
 end
 
-function kwReply(str::String, chatId::Int)
-    for s ∈ keys(kwList)
-        if str == s
-            sendMessage(text = rand(kwList[str]), chat_id = chatId)
-            return true
-        end
-    end
-    return false
-end
-
 function diceMain(msg)
-    if !(haskey(msg, :message) && haskey(msg.message, :text))
-        return nothing
-    end
 
     if debug_flag
         show(msg)
         println()
     end
 
-    str = msg.message.text
-    if kwReply(str, msg.message.chat.id)
+    if !(haskey(msg, :message) && haskey(msg.message, :text))
         return nothing
+    end
+
+    str = msg.message.text
+    if haskey(kwList, str)
+        return sendMessage(text = rand(kwList[str]), chat_id = chatId)
     end
 
 

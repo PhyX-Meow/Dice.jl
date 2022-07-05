@@ -266,7 +266,7 @@ function skillEn(args; groupId = "", userId = "")
         """
         1d100 = $(fate)/$(success)
         成功！$name 的 $skill 成长：
-        1d10 = $(up)，$success => $(success+up)
+        1d10 = $(up)，$success => $(success+up)\
         """,
     )
 end
@@ -331,7 +331,7 @@ function botInfo(args; kw...)
         """
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion
-        输入 .help 获取指令列表
+        输入 .help 获取指令列表\
         """,
         false,
         false,
@@ -582,7 +582,7 @@ function randomTi(args; kw...) # 或许可以将每个语句中具体的骰子�
     res = """
     你的疯狂发作-即时症状：
     1d10 = $fate
-    $(tiList[fate])
+    $(tiList[fate])\
     """
     return DiceReply(res)
 end
@@ -592,7 +592,7 @@ function randomLi(args; kw...)
     res = """
     你的疯狂发作-总结症状：
     1d10 = $fate
-    $(liList[fate])
+    $(liList[fate])\
     """
     return DiceReply(res)
 end

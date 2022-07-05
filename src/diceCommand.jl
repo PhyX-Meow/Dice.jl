@@ -11,6 +11,10 @@ function xdy(num::Integer, face::Integer)
     rand(1:face, num) |> sum
 end
 
+macro dice_str(str)
+    :(rollDice(str)[2])
+end
+
 function rollDice(str::AbstractString; lead = false)
     expr = replace(str, r"[^0-9d\(\)\+\-\*/]" => "")
     if isempty(expr)
@@ -573,16 +577,29 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
     return DiceReply(text)
 end
 
-function randomTi(args; kw...)
-    return noReply
+function randomTi(args; kw...) # 或许可以将每个语句中具体的骰子计算出来？
+    fate = rand(1:10)
+    res = """
+    你的疯狂发作-即时症状：
+    1d10 = $fate
+    $(tiList[fate])
+    """
+    return DiceReply(res)
 end
 
 function randomLi(args; kw...)
-    return noReply
+    fate = rand(1:10)
+    res = """
+    你的疯狂发作-总结症状：
+    1d10 = $fate
+    $(liList[fate])
+    """
+    return DiceReply(res)
 end
 
 function randomGas(args; kw...)
-    return noReply
+    fate = (rand(1:6), rand(1:20))
+    return DiceReply(gasList[fate])
 end
 
 function getJrrpSeed()

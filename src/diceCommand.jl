@@ -12,7 +12,7 @@ function xdy(num::Integer, face::Integer)
 end
 
 macro dice_str(str)
-    :(rollDice(str)[2])
+    :(rollDice($str)[2])
 end
 
 function rollDice(str::AbstractString; lead = false)

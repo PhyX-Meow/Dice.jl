@@ -44,22 +44,55 @@ function diceReplyLagacy(ws, msg, reply::DiceReply)
     length(reply.text) > 512 && WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
 
     if reply.hidden
-        if isQQFriend(msg.user_id)
-            for tt ∈ reply.text
+        if isQQFriend(ws, userId = msg.user_id)
+            @async for tt ∈ reply.text
                 WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
+                sleep(0.1)
             end
         else
             WebSockets.send(ws, makeReplyJson(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
         end
     else
-        for tt ∈ reply.text
+        @async for tt ∈ reply.text
             WebSockets.send(ws, makeReplyJson(msg, text = tt, ref = reply.ref))
+            sleep(0.1)
         end
     end
 end
 
 function handleRequest(ws, msg)
+    @switch msg.request_type begin
+        @case "friend"
+        json_data = Dict(
+            "action" => "set_friend_add_request",
+            "params" => Dict(
+                "flag" => msg.flag,
+                "approve" => true,
+            ),
+        )
+        WebSockets.send(ws, JSON3.write(json_data))
 
+        @case "group"
+        msg.sub_type != "invite" && return nothing
+        json_data = Dict(
+            "action" => "set_group_add_request",
+            "params" => Dict(
+                "flag" => msg.flag,
+                "approve" => true,
+            ),
+        )
+        WebSockets.send(ws, JSON3.write(json_data))
+    end
+end
+
+function handleNotice(ws, msg)
+    @switch msg.notice_type begin
+        @case "group_increase"
+        WebSockets.send(ws, makeReplyJson(msg, text = "悟理球出现了！", type = "group"))
+
+        @case "friend_add"
+        WebSockets.send(ws, makeReplyJson(msg, text = "你现在也是手上粘着悟理球的 Friends 啦！", type = "private"))
+    end
 end
 
 function diceMain(ws, msg)
@@ -71,6 +104,7 @@ function diceMain(ws, msg)
 
     !haskey(msg, "post_type") && return nothing
     msg.post_type == "request" && return handleRequest(ws, msg)
+    msg.post_type == "notice" && return handleNotice(ws, msg)
     msg.post_type != "message" && return nothing
     msg.message_type == "group" && msg.sub_type != "normal" && return nothing
     msg.message_type == "private" && msg.sub_type ∉ ["friend", "group"] && return nothing

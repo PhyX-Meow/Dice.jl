@@ -1,4 +1,4 @@
-const diceVersion = v"0.2.0"
+const diceVersion = v"0.3.0"
 
 struct DiceError <: Exception
     text::String
@@ -385,12 +385,16 @@ const helpText = """
     Version $diceVersion
     —————————————————
     目前可用的指令列表：
-    .help
-    .bot [on/off/exit]
-    .r[c/a][b/p][h]
-    .r XdY
-    .coc [数量]
-    .jrrp
+    .help 显示本条帮助
+    .help links 一些有用的链接
+    .bot [on/off/exit] 开关bot及让bot自动退群
+    .r[c/a][b/p][h] 检定，使用规则书规则/通用房规，奖励骰/乘法骰，暗骰
+    .r XdY  简单的骰骰子哒
+    .coc [数量] 七版人物做成
+    .jrrp 今日人品（据说数值越小越好）
+    .pc [new/rm/nn/list] 人物卡管理，新建/删除/重命名/列表
+    .ti/li 疯狂发作-即时/总结症状抽取
+    .gas 煤气灯特质抽取
     """
 const helpLinks = """
     项目主页: https://github.com/PhyX-Meow/Dice.jl

@@ -47,7 +47,7 @@ function diceReplyLagacy(ws, msg, reply::DiceReply)
         if isQQFriend(ws, userId = msg.user_id)
             for tt ∈ reply.text
                 WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
-                sleep(0.01)
+                sleep(0.05)
             end
         else
             WebSockets.send(ws, makeReplyJson(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
@@ -55,7 +55,7 @@ function diceReplyLagacy(ws, msg, reply::DiceReply)
     else
         for tt ∈ reply.text
             WebSockets.send(ws, makeReplyJson(msg, text = tt, ref = reply.ref))
-            sleep(0.01)
+            sleep(0.05)
         end
     end
 end

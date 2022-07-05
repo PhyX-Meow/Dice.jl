@@ -199,7 +199,7 @@ const charaTemplate = quote
     体质:$con 外貌:$app 教育:$edu
     体型:$siz 智力:$int 幸运:$luc
     HP:$hp MP:$mp DB:$db MOV:$mov
-    总和:$total/$luc_total
+    总和:$total/$luc_total\
     """
 end
 
@@ -394,7 +394,7 @@ const helpText = """
     .jrrp 今日人品（据说数值越小越好）
     .pc [new/rm/nn/list] 人物卡管理，新建/删除/重命名/列表
     .ti/li 疯狂发作-即时/总结症状抽取
-    .gas 煤气灯特质抽取
+    .gas 煤气灯特质抽取\
     """
 const helpLinks = """
     项目主页: https://github.com/PhyX-Meow/Dice.jl
@@ -402,7 +402,7 @@ const helpLinks = """
     魔都: https://cnmods.net/#/homePage
     骰声回响: https://dicecho.com/
     空白人物卡: https://1drv.ms/x/s!AnsQDRnK8xdggag-W_KjQsuJNU1Usw?e=H9MSPI
-    守密人规则书: https://1drv.ms/b/s!AnsQDRnK8xdggZUiWCC3EsnUGpziEg?e=5mxIx5
+    守密人规则书: https://1drv.ms/b/s!AnsQDRnK8xdggZUiWCC3EsnUGpziEg?e=5mxIx5\
     """
 
 const kwList = Dict(

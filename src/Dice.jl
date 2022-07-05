@@ -45,17 +45,17 @@ function diceReplyLagacy(ws, msg, reply::DiceReply)
 
     if reply.hidden
         if isQQFriend(ws, userId = msg.user_id)
-            @async for tt ∈ reply.text
+            for tt ∈ reply.text
                 WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
-                sleep(0.1)
+                sleep(0.01)
             end
         else
             WebSockets.send(ws, makeReplyJson(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
         end
     else
-        @async for tt ∈ reply.text
+        for tt ∈ reply.text
             WebSockets.send(ws, makeReplyJson(msg, text = tt, ref = reply.ref))
-            sleep(0.1)
+            sleep(0.01)
         end
     end
 end
@@ -82,6 +82,8 @@ function handleRequest(ws, msg)
             ),
         )
         WebSockets.send(ws, JSON3.write(json_data))
+
+        @case _
     end
 end
 
@@ -92,6 +94,8 @@ function handleNotice(ws, msg)
 
         @case "friend_add"
         WebSockets.send(ws, makeReplyJson(msg, text = "你现在也是手上粘着悟理球的 Friends 啦！", type = "private"))
+
+        @case _
     end
 end
 
@@ -114,7 +118,6 @@ function diceMain(ws, msg)
         data = makeReplyJson(msg, text = rand(kwList[str]))
         return WebSockets.send(ws, data)
     end
-
 
     if str[1] ∉ ['.', '/', '。']
         return nothing

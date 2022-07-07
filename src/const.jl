@@ -356,7 +356,7 @@ const superAdminList = [0xc45c1b20b131d1c8]
 const superAdminQQList = [0x2151adb7df36d127]
 const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
-    DiceCmd(:roll, r"^r(?:([ach])|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
+    DiceCmd(:roll, r"^r(?:([ach]+)|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
     DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),

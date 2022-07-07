@@ -90,7 +90,7 @@ end
 function handleNotice(ws, msg)
     @switch msg.notice_type begin
         @case "group_increase"
-        WebSockets.send(ws, makeReplyJson(msg, text = "悟理球出现了！", type = "group"))
+        msg.user_id == msg.self_id && WebSockets.send(ws, makeReplyJson(msg, text = "悟理球出现了！", type = "group"))
 
         @case "friend_add"
         WebSockets.send(ws, makeReplyJson(msg, text = "你现在也是手上粘着悟理球的 Friends 啦！", type = "private"))

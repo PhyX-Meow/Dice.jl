@@ -84,15 +84,15 @@ function diceMain(msg)
     end
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
-    ### SuperCommand ### Todo: 回复异常报错，支持多行代码
+    ### SuperCommand ### Todo: 回复异常报错
     if hash(msg.message.from.id) ∈ superAdminList
-        m = match(r"eval\s+(.*)", str)
+        m = match(r"eval\s+([.\n]*)", str)
         if m !== nothing
             diceReplyLagacy(msg, DiceReply("警告！你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]
             ret = nothing
             try
-                ret = superCommand |> Meta.parse |> eval
+                ret = "begin $superCommand end" |> Meta.parse |> eval
             catch err
                 return diceReplyLagacy(msg, DiceReply("执行失败", false, false))
             end

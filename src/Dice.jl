@@ -119,7 +119,9 @@ function diceMain(ws, msg)
         return WebSockets.send(ws, data)
     end
 
-    str[1] ∉ ['.', '/', '。'] && return nothing
+    if str[1] ∉ ['.', '/', '。']
+        return nothing
+    end
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     ### SuperCommand ### Todo: 回复异常报错
@@ -186,15 +188,21 @@ end
 
 function run_dice(; debug = false)
     global debug_flag = false
-    debug && debug_flag = true
+    if debug
+        debug_flag = true
+    end
 
-    !isfile("groupData.jld2") && jldsave("groupData.jld2")
+    if !isfile("groupData.jld2")
+        jldsave("groupData.jld2")
+    end
     global groupData = jldopen("groupData.jld2", "r+")
-
-    !isfile("jrrpCache.jld2") && jldsave("jrrpCache.jld2")
+    if !isfile("jrrpCache.jld2")
+        jldsave("jrrpCache.jld2")
+    end
     global jrrpCache = jldopen("jrrpCache.jld2", "r+")
-
-    !isfile("userData.jld2") && jldsave("userData.jld2")
+    if !isfile("userData.jld2")
+        jldsave("userData.jld2")
+    end
     global userData = jldopen("userData.jld2", "r+")
 
     try

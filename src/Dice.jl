@@ -146,7 +146,7 @@ end
 
 function run_dice(; debug = false)
     global debug_flag = false
-    debug && debug_flag = true
+    debug && (debug_flag = true)
 
     !isfile("groupData.jld2") && jldsave("groupData.jld2")
     global groupData = jldopen("groupData.jld2", "r+")

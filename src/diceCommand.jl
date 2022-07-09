@@ -340,7 +340,7 @@ end
 
 function botSwitch(args; groupId = "", kw...)
     isempty(groupId) && return noReply
-    !haskey(groupData, groupId) && groupData[groupId] = groupDefault
+    !haskey(groupData, groupId) && (groupData[groupId] = groupDefault)
 
     cp = groupData[groupId]
     @switch args[1] begin

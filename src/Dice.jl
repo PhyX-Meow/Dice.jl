@@ -78,10 +78,7 @@ function diceMain(msg)
         return sendMessage(text = rand(kwList[str]), chat_id = chatId)
     end
 
-
-    if str[1] ∉ ['.', '/', '。']
-        return nothing
-    end
+    str[1] ∉ ['.', '/', '。'] && return nothing
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     ### SuperCommand ### Todo: 回复异常报错
@@ -149,21 +146,15 @@ end
 
 function run_dice(; debug = false)
     global debug_flag = false
-    if debug
-        debug_flag = true
-    end
+    debug && debug_flag = true
 
-    if !isfile("groupData.jld2")
-        jldsave("groupData.jld2")
-    end
+    !isfile("groupData.jld2") && jldsave("groupData.jld2")
     global groupData = jldopen("groupData.jld2", "r+")
-    if !isfile("jrrpCache.jld2")
-        jldsave("jrrpCache.jld2")
-    end
+
+    !isfile("jrrpCache.jld2") && jldsave("jrrpCache.jld2")
     global jrrpCache = jldopen("jrrpCache.jld2", "r+")
-    if !isfile("userData.jld2")
-        jldsave("userData.jld2")
-    end
+
+    !isfile("userData.jld2") && jldsave("userData.jld2")
     global userData = jldopen("userData.jld2", "r+")
 
     try

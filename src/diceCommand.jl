@@ -339,12 +339,9 @@ function botInfo(args; kw...)
 end
 
 function botSwitch(args; groupId = "", kw...)
-    if isempty(groupId)
-        return noReply
-    end
-    if !haskey(groupData, groupId)
-        groupData[groupId] = groupDefault
-    end
+    isempty(groupId) && return noReply
+    !haskey(groupData, groupId) && groupData[groupId] = groupDefault
+
     cp = groupData[groupId]
     @switch args[1] begin
         @case "on"
@@ -355,6 +352,7 @@ function botSwitch(args; groupId = "", kw...)
             return DiceReply("悟理球出现了！")
         end
         return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
+
         @case "off"
         if groupData[groupId].isOff
             return noReply
@@ -363,11 +361,14 @@ function botSwitch(args; groupId = "", kw...)
         delete!(groupData, groupId)
         groupData[groupId] = cp
         return DiceReply("悟理球不知道哪里去了~")
+
         @case "exit"
         sendMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
         leaveChat(chat_id = parse(Int, groupId))
         delete!(groupData, groupId)
         return noReply
+
+        @case _
     end
     return noReply
 end

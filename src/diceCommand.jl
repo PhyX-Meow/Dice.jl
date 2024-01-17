@@ -604,8 +604,16 @@ function randomGas(args; kw...)
 end
 
 function getJrrpSeed()
-    resp = HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
-    # 加入超时报错
+    headers = Dict("x-api-key"=>"6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
+    resp = try
+        HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
+    catch err
+        if err isa HTTP.Exceptions.TimeoutError
+            throw(DiceError("哦不，今日人品获取超时了:("))
+        else
+            throw(err)
+        end
+    end
     dataJSON = resp.body |> String |> JSON3.read
     if !dataJSON.success
         throw(DiceError("今日人品获取失败"))

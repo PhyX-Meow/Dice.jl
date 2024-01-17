@@ -78,11 +78,6 @@ const diceDefault = DiceConfig(
     ),
 )
 
-mutable struct Investigator
-    savetime::DateTime
-    skills::Dict{String,Int}
-end
-
 const defaultSkill = Dict( # 单独处理闪避和母语
     "会计" => 5,
     "表演" => 5,
@@ -191,6 +186,7 @@ const skillAlias = Dict(
     "剑" => "刀剑",
     "hp" => "体力",
     "mp" => "魔法",
+    "修改日期" => "SaveTime", "日期" => "SaveTime",
 )
 
 const charaTemplate = quote

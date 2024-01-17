@@ -28,7 +28,7 @@ function makeReplyJson(msg; text::AbstractString, type::AbstractString = msg.mes
     elseif type == "group"
         json_data["params"]["group_id"] = msg.group_id
         if ref
-            text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.user_id)]" * text
+            text = "[CQ:reply,id=$(msg.message_id)](met)$(msg.user_id)(met) " * text
         end
     end
     json_data["params"]["message"] = text

@@ -155,8 +155,8 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
             if haskey(userData[userId], " select")
                 name = userData[userId][" select"]
                 inv = userData[userId][name]
-                if haskey(inv.skills, skill)
-                    success = inv.skills[skill]
+                if haskey(inv, skill)
+                    success = inv[skill]
                 end
             end
         end
@@ -182,10 +182,10 @@ function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/�
 
     name = userData[userId][" select"]
     inv = userData[userId][name]
-    if haskey(inv.skills, "理智")
-        san = inv.skills["理智"]
-    elseif haskey(inv.skills, "意志")
-        san = inv.skills["意志"]
+    if haskey(inv, "理智")
+        san = inv["理智"]
+    elseif haskey(inv, "意志")
+        san = inv["意志"]
     else
         throw(DiceError("错误，没有找到当前角色的理智值，是不是已经疯了？"))
     end
@@ -194,8 +194,8 @@ function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/�
     end
 
     sanMax = 99
-    if haskey(inv.skills, "克苏鲁神话")
-        sanMax -= inv.skills["克苏鲁神话"]
+    if haskey(inv, "克苏鲁神话")
+        sanMax -= inv["克苏鲁神话"]
     end
 
     res, check = skillCheck(san, :book, 0)
@@ -221,10 +221,10 @@ function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/�
         res *= "\n单次理智损失超过 5 点，调查员已陷入临时性疯狂，使用 .ti/.li 可以获取随机疯狂发作症状"
     end
 
-    inv.skills["理智"] = san
-    inv.savetime = now()
-    delete!(userData[userId], name)
-    userData[userId][name] = inv
+    delete!(inv, "SaveTime")
+    inv["SaveTime"] = now()
+    delete!(inv, "理智")
+    inv["理智"] = san
 
     return DiceReply(res)
 end
@@ -244,8 +244,8 @@ function skillEn(args; groupId = "", userId = "")
         skill = skillAlias[skill]
     end
     inv = userData[userId][name]
-    if haskey(inv.skills, skill)
-        success = inv.skills[skill]
+    if haskey(inv, skill)
+        success = inv[skill]
     elseif haskey(defaultSkill, skill)
         success = defaultSkill[skill]
     else
@@ -257,10 +257,10 @@ function skillEn(args; groupId = "", userId = "")
     end
 
     up = rand(1:10)
-    inv.skills[skill] = success + up
-    inv.savetime = now()
-    delete!(userData[userId], name)
-    userData[userId][name] = inv
+    delete!(inv, skill)
+    inv[skill] = success + up
+    delete!(inv, "SaveTime")
+    inv["SaveTime"] = now()
 
     return DiceReply(
         """
@@ -397,8 +397,11 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         throw(DiceError("错误，已存在同名角色"))
     end
 
+    inv = JLD2.Group(userData, path)
+    inv["SaveTime"] = now()
+
+    temp = Dict{String,Int}()
     skillstr = replace(skillstr, r"\s" => "")
-    inv = Investigator(now(), Dict())
     for m ∈ eachmatch(r"([^\d]*)(\d+)", skillstr)
         skill = m.captures[1] |> lowercase
         success = parse(Int, m.captures[2])
@@ -408,16 +411,18 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         if haskey(defaultSkill, skill) && success == defaultSkill[skill]
             continue
         end
-        push!(inv.skills, skill => success)
+        temp[skill] = success
     end
-    if haskey(inv.skills, "敏捷") && !haskey(inv.skills, "闪避")
-        push!(inv.skills, "闪避" => inv.skills["敏捷"] ÷ 2)
+    if haskey(inv, "敏捷") && !haskey(inv, "闪避")
+        temp["闪避"] = inv["敏捷"] ÷ 2
     end
-    if haskey(inv.skills, "教育") && !haskey(inv.skills, "母语")
-        push!(inv.skills, "母语" => inv.skills["教育"])
+    if haskey(inv, "教育") && !haskey(inv, "母语")
+        temp["母语"] = inv["教育"]
     end
 
-    userData[path] = inv
+    for (key,val) in temp
+        inv[key] = val
+    end
     if haskey(userData[userId], " select")
         delete!(userData[userId], " select")
     end
@@ -513,8 +518,8 @@ function skillShow(args; groupId = "", userId = "")
             skill = skillAlias[skill]
         end
         inv = userData[userId][name]
-        if haskey(inv.skills, skill)
-            success = inv.skills[skill]
+        if haskey(inv, skill)
+            success = inv[skill]
         elseif haskey(defaultSkill, skill)
             success = defaultSkill[skill]
         else
@@ -547,8 +552,8 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
         text *= '\n' * skill * '\t'
         expr, res = rollDice(m.captures[3])
         base = 0
-        if haskey(inv.skills, skill)
-            base = inv.skills[skill]
+        if haskey(inv, skill)
+            base = inv[skill]
         elseif haskey(defaultSkill, skill)
             base = defaultSkill[skill]
         end
@@ -559,7 +564,8 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
             res = base - res
         end
         res = max(0, res)
-        inv.skills[skill] = res
+        delete!(inv, skill)
+        inv[skill] = res
         if isempty(flag)
             if match(r"[d\+\-]", expr) !== nothing
                 text *= "$base => $expr = $res"
@@ -571,9 +577,8 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
         end
     end
 
-    inv.savetime = now()
-    delete!(userData[userId], name)
-    userData[userId][name] = inv
+    delete!(inv, "SaveTime")
+    inv["SaveTime"] = now()
 
     return DiceReply(text)
 end

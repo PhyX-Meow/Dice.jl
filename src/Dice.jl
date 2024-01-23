@@ -83,7 +83,7 @@ function diceMain(msg)
 
     ### SuperCommand ### Todo: 回复异常报错
     if hash(msg.message.from.id) ∈ superAdminList
-        m = match(r"eval\s+([.\n]*)", str)
+        m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
             diceReplyLagacy(msg, DiceReply("警告！你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]

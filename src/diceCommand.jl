@@ -611,7 +611,7 @@ end
 function getJrrpSeed()
     headers = Dict("x-api-key"=>"6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
     resp = try
-        HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
+        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=1&type=hex16&size=4", headers, readtimeout = 1)
     catch err
         if err isa HTTP.Exceptions.TimeoutError
             throw(DiceError("哦不，今日人品获取超时了:("))

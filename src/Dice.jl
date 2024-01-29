@@ -35,8 +35,26 @@ function makeReplyJson(msg; text::AbstractString, type::AbstractString = msg.mes
     return JSON3.write(json_data)
 end
 
-function isQQFriend(ws; userId)
-    return true
+function makeReplyJson_Kook(msg; text::AbstractString, type::AbstractString = msg.message_type, ref::Bool = false)
+    json_data = Dict(
+        "type" => 9,
+        "content" => text,
+    )
+    if type == "private"
+        json_data["target_id"] = msg.user_id |> string
+    elseif type == "group"
+        json_data["target_id"] = msg.group_id |> string
+    end
+    if ref
+        json_data["quote"] = msg.message_id |> string
+    end
+
+    json_str = JSON3.write(json_data)
+    if debug_flag
+        show(json_str)
+        println()
+    end
+    return json_str
 end
 
 function diceReplyLagacy(ws, msg, reply::DiceReply)
@@ -44,17 +62,23 @@ function diceReplyLagacy(ws, msg, reply::DiceReply)
     length(reply.text) > 512 && WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
 
     if reply.hidden
-        if isQQFriend(ws, userId = msg.user_id)
-            for tt ∈ reply.text
-                WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
-                sleep(0.05)
-            end
-        else
-            WebSockets.send(ws, makeReplyJson(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
+        for tt ∈ reply.text
+            WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
+            # HTTP.post(
+            #     "https://www.kookapp.cn/api/v3/direct-message/create",
+            #     ["Content-Type" => "application/json", "Authorization" => kook_token],
+            #     body = makeReplyJson(msg, text = tt, type = "private")
+            # )
+            sleep(0.05)
         end
     else
         for tt ∈ reply.text
             WebSockets.send(ws, makeReplyJson(msg, text = tt, ref = reply.ref))
+            # HTTP.post(
+            #     "https://www.kookapp.cn/api/v3/message/create",
+            #     ["Content-Type" => "application/json", "Authorization" => kook_token],
+            #     body = makeReplyJson(msg, text = tt, ref = reply.ref)
+            # )
             sleep(0.05)
         end
     end

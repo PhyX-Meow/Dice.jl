@@ -1,6 +1,7 @@
 function run_bot(f::Function)
     global cq_ws_server = get(ENV, "CQ_WS_SERVER", "")
     global cq_http_server = get(ENV, "CQ_HTTP_SERVER", "")
+    global kook_token = get(ENV, "KOOK_TOKEN", "")
     WebSockets.open(cq_ws_server) do ws
         for str ∈ ws
             msg = JSON3.read(str)

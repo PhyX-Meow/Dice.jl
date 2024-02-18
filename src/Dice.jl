@@ -123,6 +123,7 @@ function diceMain(ws, msg)
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     if hash(msg.user_id) ∈ superAdminQQList
+        str = replace(str, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
         m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
             superCommand = m.captures[1]

@@ -14,34 +14,41 @@ using ConfigEnv
 include("const.jl")
 include("diceCommand.jl")
 
-function diceReply(msg, text::AbstractString; ref = true, pvt = false)
-    if isempty(text) || length(text) > 512
-        return nothing
-    end
-    if pvt
-        try
-            sendMessage(text = text, chat_id = msg.message.from.id)
-        catch err
-            sendMessage(
-                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-                chat_id = msg.message.chat.id,
-                reply_to_message_id = msg.message.message_id,
-            )
-        end
-    elseif ref
-        sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
-    else
-        sendMessage(text = text, chat_id = msg.message.chat.id)
-    end
-end
+# function diceReply(msg, text::AbstractString; ref = true, pvt = false)
+#     if isempty(text) || length(text) > 512
+#         return nothing
+#     end
+#     if pvt
+#         try
+#             sendMessage(text = text, chat_id = msg.message.from.id)
+#         catch err
+#             sendMessage(
+#                 text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
+#                 chat_id = msg.message.chat.id,
+#                 reply_to_message_id = msg.message.message_id,
+#             )
+#         end
+#     elseif ref
+#         sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
+#     else
+#         sendMessage(text = text, chat_id = msg.message.chat.id)
+#     end
+# end
 
 function diceReplyLagacy(msg, reply::DiceReply)
-    if isempty(reply.text) || length(reply.text) > 512
-        return nothing
+    isempty(reply.text) && return nothing
+    if maximum(length.(reply.text)) > 512
+        sendMessage(
+            text = "结果过长，无法发送！",
+            chat_id = msg.message.chat.id,
+            reply_to_message_id = msg.message.message_id,
+        )
     end
+
+    parsed_text = replace.(reply.text, r"([_*[\]()~>#+\-=|{}.!])" => s"\\\1")
     if reply.hidden
         try
-            for tt ∈ reply.text
+            for tt ∈ parsed_text
                 sendMessage(text = tt, chat_id = msg.message.from.id, parse_mode = "MarkdownV2")
             end
         catch err
@@ -52,11 +59,11 @@ function diceReplyLagacy(msg, reply::DiceReply)
             )
         end
     elseif reply.ref
-        for tt ∈ reply.text
+        for tt ∈ parsed_text
             sendMessage(text = tt, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id, parse_mode = "MarkdownV2")
         end
     else
-        for tt ∈ reply.text
+        for tt ∈ parsed_text
             sendMessage(text = tt, chat_id = msg.message.chat.id, parse_mode = "MarkdownV2")
         end
     end

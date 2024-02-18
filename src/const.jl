@@ -1,4 +1,4 @@
-const diceVersion = v"0.3.0"
+const diceVersion = v"0.4.0"
 
 struct DiceError <: Exception
     text::String
@@ -27,9 +27,11 @@ end
 mutable struct GroupConfig
     isOff::Bool
     randomType::Int # 0 => default, 1 => jrrp based, 2 => quantum random
+    defaultDice::Int
+    mode::Symbol
 end
 
-const groupDefault = GroupConfig(false, 0)
+const groupDefault = GroupConfig(false, 0, 100, :coc)
 
 const diceDefault = DiceConfig(
     Dict(
@@ -352,10 +354,11 @@ const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
     DiceCmd(:roll, r"^r(?:([ach]+)|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
+    DiceCmd(:charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
     DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),
     DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
-    DiceCmd(:diceConfig, r"^conf(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(:diceConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
     DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
     DiceCmd(:invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
     DiceCmd(:invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),
@@ -383,16 +386,17 @@ const helpText = """
     .help 显示本条帮助
     .help links 一些有用的链接
     .bot [on/off/exit] 开关bot及让bot自动退群
+    .set [coc/dnd] COC和DND模式切换
     .r[c/a][b/p][h] 检定，使用规则书规则/通用房规，奖励骰/乘法骰，暗骰
-    .r XdY  简单的骰骰子哒
-    .coc [数量] 七版人物做成
+    .r XdY  简单的骰骰子哒，在末尾添加#N可以骰N次哦
+    .coc [数量] COC七版人物做成
+    .dnd [数量] DND五版随机属性值
     .jrrp 今日人品（据说数值越小越好）
     .pc [new/rm/nn/list] 人物卡管理，新建/删除/重命名/列表
     .ti/li 疯狂发作-即时/总结症状抽取
     .gas 煤气灯特质抽取\
     """
 const helpLinks = """
-    项目主页: https://github.com/PhyX-Meow/Dice.jl
     纯美苹果园: http://www.goddessfantasy.net/bbs/index.php
     魔都: https://cnmods.net/#/homePage
     骰声回响: https://dicecho.com/

@@ -122,10 +122,6 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
     end
 
     if check
-        rule = groupDefault.rcRule
-        if !isempty(groupId) && haskey(groupData, groupId)
-            rule = groupData[groupId].rcRule
-        end
         if pop
             rule = :pop
         elseif book
@@ -168,7 +164,7 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
-function sanCheck(args; groupId = "", userId = "") # To do: .ti .li 恐惧症/躁狂症
+function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -611,7 +607,7 @@ end
 function getJrrpSeed()
     headers = Dict("x-api-key"=>"6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
     resp = try
-        HTTP.get("https://qrng.anu.edu.au/API/jsonI.php?length=1&type=hex16&size=8", readtimeout = 1)
+        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=1&type=hex16&size=4", headers, readtimeout = 1)
     catch err
         if err isa HTTP.Exceptions.TimeoutError
             throw(DiceError("哦不，今日人品获取超时了:("))

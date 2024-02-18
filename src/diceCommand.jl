@@ -1,44 +1,59 @@
-function xdy(num::Integer, face::Integer)
-    if num <= 0 || face <= 0
-        throw(DiceError("悟理球无法骰不存在的骰子！"))
+function xdy(num::Integer, face::Integer; take::Integer = 0, rng = Random.default_rng())
+    (num <= 0 || face <= 0) && throw(DiceError("悟理球无法骰不存在的骰子！"))
+    num >= 1 << 16 && throw(DiceError("骰子太多了，骰不过来了qwq"))
+    face >= 1 << 16 && throw(DiceError("你这骰子已经是个球球了，没法骰了啦！"))
+
+    roll = rand(rng, 1:face, num)
+    @match take begin
+        GuardBy(>(0)) => sum(sort(roll, rev = true)[1:min(take, num)])
+        GuardBy(<(0)) => sum(sort(roll)[1:min(-take, num)])
+        _ => sum(roll)
     end
-    if num >= 1 << 16
-        throw(DiceError("骰子太多了，骰不过来了qwq"))
-    end
-    if face >= 1 << 16
-        throw(DiceError("你这骰子已经是个球球了，没法骰了啦！"))
-    end
-    rand(1:face, num) |> sum
 end
 
 macro dice_str(str)
     :(rollDice($str)[2])
 end
 
-function rollDice(str::AbstractString; lead = false)
-    expr = replace(str, r"[^0-9d\(\)\+\-\*/]" => "")
+function rollDice(str::AbstractString; defaultDice = 100, lead = false)
+    expr = replace(str, r"[^0-9d()+\-*/#]" => "")
+    num = 1
+    m_ = match(r"#.*$", expr)
+    if m_ !== nothing
+        m = match(r"#(\d*)$", expr)
+        isnothing(m) && throw(DiceError("骰点次数指定(#数字)只能在表达式末尾哦"))
+        expr = replace(expr, r"#.*$" => "")
+        if !isempty(m.captures[1])
+            num = parse(Int, m.captures[1])
+        end
+    end
+    num <= 0 && throw(DiceError("悟理球无法骰不存在的骰子！"))
+    num >= 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
+
     if isempty(expr)
-        return ("1d100", rand(1:100))
+        return ("1d$defaultDice", rand(1:defaultDice))
     end
     if match(r"d\d*d", expr) !== nothing
         throw(DiceError("表达式格式错误，算不出来惹"))
     end
     expr = replace(expr, r"(?<!\d)d" => "1d")
-    expr = replace(expr, r"d(?!\d)" => "d100")
+    expr = replace(expr, r"d(?!\d)" => "d$defaultDice")
     if !lead
         expr_ = replace(expr, r"(\d+)d(\d+)" => s"xdy(\1,\2)", "/" => "÷")
     else
         expr_ = replace(expr, r"(\d+)d(\d+)" => s"\1*\2", "/" => "÷")
     end
-    try
-        return (expr, Meta.parse(expr_) |> eval)
-    catch err
-        if err isa Base.Meta.ParseError
-            throw(DiceError("表达式格式错误，算不出来惹"))
-        else
-            rethrow()
-        end
+
+    expr__ = try
+        Meta.parse(expr_)
+    catch _
+        throw(DiceError("表达式格式错误，算不出来惹"))
     end
+
+    if num > 1
+        return ("$expr#$num", string([eval(expr__) for _ ∈ 1:num]))
+    end
+    return (expr, eval(expr__))
 end
 
 function skillCheck(success::Int, rule::Symbol, bonus::Int)
@@ -94,6 +109,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
 end
 
 function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple times
+    config = getGroupConfig(groupId)
     ops, b, p, str = args
     if ops === nothing
         ops = ""
@@ -160,7 +176,8 @@ function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple tim
         res *= rand(diceDefault.customReply[check]) # 重构此处代码
         return DiceReply(res, hidden, true)
     end
-    expr, res = rollDice(str)
+
+    expr, res = rollDice(str; defaultDice = config.defaultDice)
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
@@ -301,19 +318,30 @@ randChara = @eval function ()
     $charaTemplate
 end
 
+function randCharaDnd()
+end
+
+function charMakeDnd(args; kw...)
+    m = match(r"^\s*(\d+)", args[1])
+    num = isnothing(m) ? 1 : parse(Int, m.captures[1])
+    num > 10 && return DiceReply("单次人物做成最多 10 个哦，再多算不过来了")
+    num <= 0 && return DiceReply("啊咧，你要捏几个人来着")
+
+    res = "DND5e 人物做成："
+    for _ in 1:num
+        stats = [xdy(4, 6; take = 3) for _ ∈ 1:6]
+        res = res * "\n" * string(stats) * "，总和：" * string(sum(stats))
+    end
+    return DiceReply(res, false, false)
+end
+
 function charMake(args; kw...)
     m = match(r"^\s*(\d+)", args[1])
-    num = 1
-    if m !== nothing
-        num = parse(Int, m.captures[1])
-    end
-    if num > 10
-        return DiceReply("单次人物做成最多 10 个哦，再多算不过来了")
-    end
-    if num <= 0
-        return DiceReply("啊咧，你要捏几个人来着")
-    end
-    res = [randChara() for i ∈ 1:num]
+    num = isnothing(m) ? 1 : parse(Int, m.captures[1])
+    num > 10 && return DiceReply("单次人物做成最多 10 个哦，再多算不过来了")
+    num <= 0 && return DiceReply("啊咧，你要捏几个人来着")
+
+    res = [randChara() for _ ∈ 1:num]
     res[1] = "7 版人物做成：\n" * res[1]
     return DiceReply(res, false, false)
 end
@@ -327,6 +355,7 @@ function botInfo(args; kw...)
         """
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion
+        项目主页：https://github.com/PhyX-Meow/Dice.jl
         输入 .help 获取指令列表\
         """,
         false,
@@ -334,28 +363,29 @@ function botInfo(args; kw...)
     )
 end
 
-function botSwitch(args; groupId = "", kw...)
-    isempty(groupId) && return noReply
+function getGroupConfig(groupId)
+    isempty(groupId) && throw(DiceError("错误，群号丢失"))
     !haskey(groupData, groupId) && (groupData[groupId] = groupDefault)
+    return groupData[groupId]
+end
 
-    cp = groupData[groupId]
+function botSwitch(args; groupId = "", kw...)
+    config = getGroupConfig(groupId)
     @switch args[1] begin
         @case "on"
-        if groupData[groupId].isOff
-            cp.isOff = false
+        if config.isOff
+            config.isOff = false
             delete!(groupData, groupId)
-            groupData[groupId] = cp
+            groupData[groupId] = config
             return DiceReply("悟理球出现了！")
         end
         return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
 
         @case "off"
-        if groupData[groupId].isOff
-            return noReply
-        end
-        cp.isOff = true
+        config.isOff && return noReply
+        config.isOff = true
         delete!(groupData, groupId)
-        groupData[groupId] = cp
+        groupData[groupId] = config
         return DiceReply("悟理球不知道哪里去了~")
 
         @case "exit"
@@ -369,11 +399,32 @@ function botSwitch(args; groupId = "", kw...)
     return noReply
 end
 
+function diceConfig(args; groupId = "", kw...) # Add #[num] to roll multiple times
+    setting = args[1]
+    config = getGroupConfig(groupId)
+    @switch setting begin
+        @case "dnd"
+        config.mode = :dnd
+        config.defaultDice = 20
+        delete!(groupData, groupId)
+        groupData[groupId] = config
+        return DiceReply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
+
+        @case "coc"
+        config.mode = :coc
+        config.defaultDice = 100
+        delete!(groupData, groupId)
+        groupData[groupId] = config
+        return DiceReply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
+
+        @case _
+    end
+    return DiceReply("这是什么设置？悟理球不知道喵！")
+end
+
 function diceHelp(args; kw...)
     m = match(r"link", args[1])
-    if m !== nothing
-        return DiceReply(helpLinks, false, false)
-    end
+    m !== nothing && return DiceReply(helpLinks, false, false)
     return DiceReply(helpText, false, false)
 end
 
@@ -416,7 +467,7 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         temp["母语"] = inv["教育"]
     end
 
-    for (key,val) in temp
+    for (key, val) in temp
         inv[key] = val
     end
     if haskey(userData[userId], " select")
@@ -605,7 +656,10 @@ function randomGas(args; kw...)
 end
 
 function getJrrpSeed()
-    headers = Dict("x-api-key"=>"6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
+    date = today() |> string
+    haskey(jrrpCache, date) && return jrrpCache[date]
+
+    headers = Dict("x-api-key" => "6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
     resp = try
         HTTP.get("https://api.quantumnumbers.anu.edu.au?length=1&type=hex16&size=4", headers, readtimeout = 1)
     catch err
@@ -619,17 +673,12 @@ function getJrrpSeed()
     if !dataJSON.success
         throw(DiceError("今日人品获取失败"))
     end
-    return parse(UInt64, dataJSON.data[1], base = 16)
+    jrrpCache[date] = seed = parse(UInt64, dataJSON.data[1], base = 16)
+    return seed
 end
 
 function jrrp(args; userId = "", kw...)
-    date = today() |> string
-    if haskey(jrrpCache, date)
-        seed = jrrpCache[date]
-    else
-        seed = getJrrpSeed()
-        jrrpCache[date] = seed
-    end
+    seed = getJrrpSeed()
     rng = MersenneTwister(parse(UInt64, userId) ⊻ seed)
     rp = rand(rng, 1:100)
     return DiceReply("今天你的手上粘了 $rp 个悟理球！")

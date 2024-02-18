@@ -1,4 +1,4 @@
-const diceVersion = v"0.4.0"
+const diceVersion = v"0.4.1"
 
 struct DiceError <: Exception
     text::String

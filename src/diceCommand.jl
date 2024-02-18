@@ -31,7 +31,7 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false)
     num >= 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
     if isempty(expr)
-        return ("1d$defaultDice", rand(1:defaultDice))
+        expr = "1d$defaultDice"
     end
     if match(r"d\d*d", expr) !== nothing
         throw(DiceError("表达式格式错误，算不出来惹"))
@@ -108,8 +108,9 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res, check # 重构这里的代码
 end
 
-function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple times
-    config = getGroupConfig(groupId)
+function roll(args; groupId = "", userId = "")
+    config = getConfig(groupId, userId)
+
     ops, b, p, str = args
     if ops === nothing
         ops = ""
@@ -363,14 +364,21 @@ function botInfo(args; kw...)
     )
 end
 
-function getGroupConfig(groupId)
+function getConfig(groupId, userId)
+    if groupId == "private"
+        isempty(userId) && throw(DiceError("错误，未知用户"))
+        path = "$userId/ config"
+        !haskey(userData, path) && (userData[path] = groupDefault)
+        return userData[path]
+    end
     isempty(groupId) && throw(DiceError("错误，群号丢失"))
     !haskey(groupData, groupId) && (groupData[groupId] = groupDefault)
     return groupData[groupId]
 end
 
-function botSwitch(args; groupId = "", kw...)
-    config = getGroupConfig(groupId)
+function botSwitch(args; groupId = "", userId = "")
+    groupId == "private" && return DiceReply("只能在群聊中开关悟理球哦")
+    config = getConfig(groupId, userId)
     @switch args[1] begin
         @case "on"
         if config.isOff
@@ -399,22 +407,30 @@ function botSwitch(args; groupId = "", kw...)
     return noReply
 end
 
-function diceConfig(args; groupId = "", kw...) # Add #[num] to roll multiple times
+function diceConfig(args; groupId = "", userId = "")
     setting = args[1]
-    config = getGroupConfig(groupId)
+    config = getConfig(groupId, userId)
+    if groupId == "private"
+        dataset = userData
+        config_path = "$userId/ config"
+    else
+        dataset = groupData
+        config_path = groupId
+    end
+
     @switch setting begin
         @case "dnd"
         config.mode = :dnd
         config.defaultDice = 20
-        delete!(groupData, groupId)
-        groupData[groupId] = config
+        delete!(dataset, config_path)
+        dataset[config_path] = config
         return DiceReply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
 
         @case "coc"
         config.mode = :coc
         config.defaultDice = 100
-        delete!(groupData, groupId)
-        groupData[groupId] = config
+        delete!(dataset, config_path)
+        dataset[config_path] = config
         return DiceReply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
 
         @case _
@@ -630,7 +646,7 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
     return DiceReply(text)
 end
 
-function randomTi(args; kw...) # 或许可以将每个语句中具体的骰子计算出来？
+function randomTi(args; kw...)
     fate = rand(1:10)
     res = """
     你的疯狂发作-即时症状：

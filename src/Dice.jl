@@ -135,7 +135,7 @@ function diceMain(ws, msg)
                 else
                     err_msg = string(err)
                 end
-                return diceReplyLagacy(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
+                return diceReplyLagacy(ws, msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
             end
             return diceReplyLagacy(ws, msg, DiceReply("执行结果：$ret", false, false))
         end

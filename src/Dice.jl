@@ -122,17 +122,20 @@ function diceMain(ws, msg)
     str[1] ∉ ['.', '/', '。'] && return nothing
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
-    ### SuperCommand ### Todo: 回复异常报错
     if hash(msg.user_id) ∈ superAdminQQList
-        m = match(r"eval\s+(.*)", str)
+        m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
-            diceReplyLagacy(ws, msg, DiceReply("警告！你在执行一个超级指令！", false, true))
             superCommand = m.captures[1]
             ret = nothing
             try
                 ret = "begin $superCommand end" |> Meta.parse |> eval
             catch err
-                return diceReplyLagacy(ws, msg, DiceReply("执行失败", false, false))
+                if err isa Base.Meta.ParseError
+                    err_msg = err.msg
+                else
+                    err_msg = string(err)
+                end
+                return diceReplyLagacy(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
             end
             return diceReplyLagacy(ws, msg, DiceReply("执行结果：$ret", false, false))
         end

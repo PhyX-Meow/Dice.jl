@@ -31,7 +31,7 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false)
     num >= 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
     if isempty(expr)
-        return ("1d$defaultDice", rand(1:defaultDice))
+        expr = "1d$defaultDice"
     end
     if match(r"d\d*d", expr) !== nothing
         throw(DiceError("表达式格式错误，算不出来惹"))

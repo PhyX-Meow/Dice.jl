@@ -364,17 +364,16 @@ function botInfo(args; kw...)
     )
 end
 
-function getGroupConfig(groupId)
+function getConfig(groupId, userId)
+    if groupId == "private"
+        isempty(userId) && throw(DiceError("错误，未知用户"))
+        path = "$userId/ config"
+        !haskey(userData, path) && (userData[path] = groupDefault)
+        return userData[path]
+    end
     isempty(groupId) && throw(DiceError("错误，群号丢失"))
     !haskey(groupData, groupId) && (groupData[groupId] = groupDefault)
     return groupData[groupId]
-end
-
-function getUserConfig(userId)
-    isempty(userId) && throw(DiceError("错误，未知用户"))
-    path = "$userId/ config"
-    !haskey(userData, path) && (userData[path] = groupDefault)
-    return userData[path]
 end
 
 function botSwitch(args; groupId = "", kw...)
@@ -407,22 +406,30 @@ function botSwitch(args; groupId = "", kw...)
     return noReply
 end
 
-function diceConfig(args; groupId = "", kw...)
+function diceConfig(args; groupId = "", userId = "")
     setting = args[1]
-    config = getGroupConfig(groupId)
+    config = getConfig(groupId, userId)
+    if groupId == "private"
+        dataset = userData
+        config_path = "$userId/ config"
+    else
+        dataset = groupData
+        config_path = groupId
+    end
+
     @switch setting begin
         @case "dnd"
         config.mode = :dnd
         config.defaultDice = 20
-        delete!(groupData, groupId)
-        groupData[groupId] = config
+        delete!(dataset, config_path)
+        dataset[config_path] = config
         return DiceReply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
 
         @case "coc"
         config.mode = :coc
         config.defaultDice = 100
-        delete!(groupData, groupId)
-        groupData[groupId] = config
+        delete!(dataset, config_path)
+        dataset[config_path] = config
         return DiceReply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
 
         @case _

@@ -109,7 +109,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
 end
 
 function roll(args; groupId = "", userId = "")
-    config = groupId == "private" ? getUserConfig(userId) : getGroupConfig(groupId)
+    config = getConfig(groupId, userId)
 
     ops, b, p, str = args
     if ops === nothing
@@ -376,8 +376,9 @@ function getConfig(groupId, userId)
     return groupData[groupId]
 end
 
-function botSwitch(args; groupId = "", kw...)
-    config = getGroupConfig(groupId)
+function botSwitch(args; groupId = "", userId = "")
+    groupId == "private" && return DiceReply("只能在群聊中开关悟理球哦")
+    config = getConfig(groupId, userId)
     @switch args[1] begin
         @case "on"
         if config.isOff

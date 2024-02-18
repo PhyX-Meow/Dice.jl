@@ -116,6 +116,7 @@ function diceMain(msg)
         ignore = haskey(groupData, groupId) ? groupData[groupId].isOff : groupDefault.isOff
     elseif msg.message.chat.type == "private"
         chatType = :private
+        groupId = "private"
         ignore = false
     end
     if chatType == :na

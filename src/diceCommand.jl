@@ -108,8 +108,9 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res, check # 重构这里的代码
 end
 
-function roll(args; groupId = "", userId = "") # Add #[num] to roll multiple times
-    config = getGroupConfig(groupId)
+function roll(args; groupId = "", userId = "")
+    config = groupId == "private" ? getUserConfig(userId) : getGroupConfig(groupId)
+
     ops, b, p, str = args
     if ops === nothing
         ops = ""
@@ -369,6 +370,13 @@ function getGroupConfig(groupId)
     return groupData[groupId]
 end
 
+function getUserConfig(userId)
+    isempty(userId) && throw(DiceError("错误，未知用户"))
+    path = "$userId/ config"
+    !haskey(userData, path) && (userData[path] = groupDefault)
+    return userData[path]
+end
+
 function botSwitch(args; groupId = "", kw...)
     config = getGroupConfig(groupId)
     @switch args[1] begin
@@ -399,7 +407,7 @@ function botSwitch(args; groupId = "", kw...)
     return noReply
 end
 
-function diceConfig(args; groupId = "", kw...) # Add #[num] to roll multiple times
+function diceConfig(args; groupId = "", kw...)
     setting = args[1]
     config = getGroupConfig(groupId)
     @switch setting begin
@@ -630,7 +638,7 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
     return DiceReply(text)
 end
 
-function randomTi(args; kw...) # 或许可以将每个语句中具体的骰子计算出来？
+function randomTi(args; kw...)
     fate = rand(1:10)
     res = """
     你的疯狂发作-即时症状：

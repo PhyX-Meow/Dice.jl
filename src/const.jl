@@ -25,12 +25,11 @@ struct DiceConfig
 end
 
 mutable struct GroupConfig
-    rcRule::Symbol
     isOff::Bool
-    team::Array{Int}
+    randomType::Int # 0 => default, 1 => jrrp based, 2 => quantum random
 end
 
-const groupDefault = GroupConfig(:book, false, Int[])
+const groupDefault = GroupConfig(false, 0)
 
 const diceDefault = DiceConfig(
     Dict(

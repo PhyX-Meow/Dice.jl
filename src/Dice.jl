@@ -35,7 +35,7 @@ include("diceCommand.jl")
 #     end
 # end
 
-function diceReplyLagacy(msg, reply::DiceReply)
+function diceReplyLegacy(msg, reply::DiceReply)
     isempty(reply.text) && return nothing
     if maximum(length.(reply.text)) > 512
         sendMessage(
@@ -101,9 +101,9 @@ function diceMain(msg)
                 else
                     err_msg = string(err)
                 end
-                return diceReplyLagacy(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
+                return diceReplyLegacy(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
             end
-            return diceReplyLagacy(msg, DiceReply("执行结果：$ret", false, false))
+            return diceReplyLegacy(msg, DiceReply("执行结果：$ret", false, false))
         end
     end
 
@@ -150,7 +150,7 @@ function diceMain(msg)
         end
     end
     if !ignore
-        return diceReplyLagacy(msg, reply)
+        return diceReplyLegacy(msg, reply)
     end
     return nothing
 end

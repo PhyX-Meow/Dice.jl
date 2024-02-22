@@ -57,7 +57,7 @@ function makeReplyJson_Kook(msg; text::AbstractString, type::AbstractString = ms
     return json_str
 end
 
-function diceReplyLagacy(ws, msg, reply::DiceReply)
+function diceReplyLegacy(ws, msg, reply::DiceReply)
     isempty(reply.text) && return nothing
     length(reply.text) > 512 && WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
 
@@ -159,9 +159,9 @@ function diceMain(ws, msg)
                 else
                     err_msg = string(err)
                 end
-                return diceReplyLagacy(ws, msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
+                return diceReplyLegacy(ws, msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
             end
-            return diceReplyLagacy(ws, msg, DiceReply("执行结果：$ret", false, false))
+            return diceReplyLegacy(ws, msg, DiceReply("执行结果：$ret", false, false))
         end
     end
 
@@ -207,7 +207,7 @@ function diceMain(ws, msg)
         end
     end
     if !ignore
-        return diceReplyLagacy(ws, msg, reply)
+        return diceReplyLegacy(ws, msg, reply)
     end
     return nothing
 end

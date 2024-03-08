@@ -14,27 +14,6 @@ using ConfigEnv
 include("const.jl")
 include("diceCommand.jl")
 
-# function diceReply(msg, text::AbstractString; ref = true, pvt = false)
-#     if isempty(text) || length(text) > 512
-#         return nothing
-#     end
-#     if pvt
-#         try
-#             sendMessage(text = text, chat_id = msg.message.from.id)
-#         catch err
-#             sendMessage(
-#                 text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-#                 chat_id = msg.message.chat.id,
-#                 reply_to_message_id = msg.message.message_id,
-#             )
-#         end
-#     elseif ref
-#         sendMessage(text = text, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id)
-#     else
-#         sendMessage(text = text, chat_id = msg.message.chat.id)
-#     end
-# end
-
 function diceReplyLegacy(msg, reply::DiceReply)
     isempty(reply.text) && return nothing
     if maximum(length.(reply.text)) > 512
@@ -108,20 +87,18 @@ function diceMain(msg)
     end
 
     ignore = true
-    chatType = :na
+    chatType = :unknown
     groupId = msg.message.chat.id |> string
     userId = msg.message.from.id |> string
     if msg.message.chat.type ∈ ["group", "supergroup"]
         chatType = :group
-        ignore = haskey(groupData, groupId) ? groupData[groupId].isOff : groupDefault.isOff
+        ignore = getConfig(groupId, "everyone")["isOff"]
     elseif msg.message.chat.type == "private"
         chatType = :private
         groupId = "private"
         ignore = false
     end
-    if chatType == :na
-        return nothing
-    end
+    chatType == :unknown && return nothing
 
     reply = noReply
     for cmd ∈ cmdList
@@ -132,7 +109,8 @@ function diceMain(msg)
         if m !== nothing
             ignore = false
             try
-                reply = @eval $(cmd.func)($(m.captures); groupId = $groupId, userId = $userId)
+                foo = eval(cmd.func)
+                reply = foo(m.captures; groupId = groupId, userId = userId)
             catch err
                 if err isa DiceError
                     reply = DiceReply(err.text)

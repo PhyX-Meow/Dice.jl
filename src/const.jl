@@ -1,4 +1,4 @@
-const diceVersion = v"0.4.1"
+const diceVersion = v"0.5.0"
 
 struct DiceError <: Exception
     text::String
@@ -20,63 +20,62 @@ DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply([str], hidde
 DiceReply(str::AbstractString) = DiceReply([str], false, true)
 const noReply = DiceReply(AbstractString[], false, false)
 
-struct DiceConfig
-    customReply::Dict{Symbol,Array{String}}
-end
+const defaultUserConfig = Dict(
+    "randomMode" => :default,
+    "defaultDice" => 100,
+    "gameMode" => :coc,
+    "detailedDice" => false,
+)
 
-mutable struct GroupConfig
-    isOff::Bool
-    randomType::Int # 0 => default, 1 => jrrp based, 2 => quantum random
-    defaultDice::Int
-    mode::Symbol
-end
+const defaultGroupConfig = Dict(
+    "isOff" => false,
+    "defaultDice" => 100,
+    "gameMode" => :coc,
+    "detailedDice" => false,
+)
 
-const groupDefault = GroupConfig(false, 0, 100, :coc)
-
-const diceDefault = DiceConfig(
-    Dict(
-        :critical => [
-            "锵锵锵！大成功出现了！",
-            "出现了！是大成功！",
-            "大成功！KP快给奖励(盯)",
-            "是大成功诶！快感谢我~",
-        ],
-        :extreme => [
-            "极难成功，干得漂亮~",
-            "是极难成功，すごいい！",
-            "极难成功！如果是战斗轮就满伤了诶",
-            "极难成功！虽然不是大成功，不过极难成功已经很厉害了",
-        ],
-        :hard => [
-            "是困难成功诶",
-            "困难成功，运气不错呢~",
-            "哎嘿是困难成功",
-            "咣当，咣当，困难成功",
-            "是困难成功，sasuga",
-        ],
-        :regular => [
-            "简单的成功了。",
-            "成功了！好耶——",
-            "收下吧！这就是我最后的成功了！(并不)",
-            "当我说出“成功”两个字的时候，我的行动早已完成了！",
-        ],
-        :failure => [
-            "失败了，惨惨。",
-            "失败了唔，心疼你一秒",
-            "好可惜，失败了唔",
-            "失败，想要成功就给我打钱(无情)",
-            "失败，庆幸不是大失败吧~啊哈哈哈",
-            "失败了，我跟你们讲，其实本来是大失败的，我和KP做了秘密交易才改成了普通失败",
-        ],
-        :fumble => [
-            "你以为能骰出成功？其实是大失败哒！",
-            "大失败！我悟理球最喜欢做的事情之一，就是对自以为可以骰出成功的 pc 们 say “NO！”",
-            "大失败！不过没关系，人类的赞歌就是勇气的赞歌！要相信自己！",
-            "大失败！圣人云：骰出大失败才是跑团的乐趣。",
-            "大失败！也许这就是命运。",
-            "大失败！正如同宇宙的真实一样，悟理球是残酷且无理性的。",
-        ],
-    ),
+const checkReply = Dict(
+    :critical => [
+        "锵锵锵！大成功出现了！",
+        "出现了！是大成功！",
+        "大成功！KP快给奖励(盯)",
+        "是大成功诶！快感谢我~",
+    ],
+    :extreme => [
+        "极难成功，干得漂亮~",
+        "是极难成功，すごいい！",
+        "极难成功！如果是战斗轮就满伤了诶",
+        "极难成功！虽然不是大成功，不过极难成功已经很厉害了",
+    ],
+    :hard => [
+        "是困难成功诶",
+        "困难成功，运气不错呢~",
+        "哎嘿是困难成功",
+        "咣当，咣当，困难成功",
+        "是困难成功，sasuga",
+    ],
+    :regular => [
+        "简单的成功了。",
+        "成功了！好耶——",
+        "收下吧！这就是我最后的成功了！(并不)",
+        "当我说出“成功”两个字的时候，我的行动早已完成了！",
+    ],
+    :failure => [
+        "失败了，惨惨。",
+        "失败了唔，心疼你一秒",
+        "好可惜，失败了唔",
+        "失败，想要成功就给我打钱(无情)",
+        "失败，庆幸不是大失败吧~啊哈哈哈",
+        "失败了，我跟你们讲，其实本来是大失败的，我和KP做了秘密交易才改成了普通失败",
+    ],
+    :fumble => [
+        "你以为能骰出成功？其实是大失败哒！",
+        "大失败！我悟理球最喜欢做的事情之一，就是对自以为可以骰出成功的 pc 们 say “NO！”",
+        "大失败！不过没关系，人类的赞歌就是勇气的赞歌！要相信自己！",
+        "大失败！圣人云：骰出大失败才是跑团的乐趣。",
+        "大失败！也许这就是命运。",
+        "大失败！正如同宇宙的真实一样，悟理球是残酷且无理性的。",
+    ],
 )
 
 const defaultSkill = Dict( # 单独处理闪避和母语
@@ -358,7 +357,7 @@ const cmdList = [
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
     DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),
     DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
-    DiceCmd(:diceConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(:diceSetConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
     DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
     DiceCmd(:invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
     DiceCmd(:invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),

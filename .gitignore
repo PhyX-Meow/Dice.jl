@@ -1,5 +1,6 @@
 .env
 Manifest.toml
+diceConfig.jld2
 groupData.jld2
 jrrpCache.jld2
 userData.jld2

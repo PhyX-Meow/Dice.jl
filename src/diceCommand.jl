@@ -1,59 +1,79 @@
-function xdy(num::Integer, face::Integer; take::Integer = 0, rng = Random.default_rng())
-    (num <= 0 || face <= 0) && throw(DiceError("悟理球无法骰不存在的骰子！"))
-    num >= 1 << 16 && throw(DiceError("骰子太多了，骰不过来了qwq"))
-    face >= 1 << 16 && throw(DiceError("你这骰子已经是个球球了，没法骰了啦！"))
-
-    roll = rand(rng, 1:face, num)
-    @match take begin
-        GuardBy(>(0)) => sum(sort(roll, rev = true)[1:min(take, num)])
-        GuardBy(<(0)) => sum(sort(roll)[1:min(-take, num)])
-        _ => sum(roll)
-    end
-end
+include("utils.jl")
 
 macro dice_str(str)
     :(rollDice($str)[2])
 end
 
-function rollDice(str::AbstractString; defaultDice = 100, lead = false)
-    expr = replace(str, r"[^0-9d()+\-*/#]" => "")
-    num = 1
-    m_ = match(r"#.*$", expr)
-    if m_ !== nothing
-        m = match(r"#(\d*)$", expr)
-        isnothing(m) && throw(DiceError("骰点次数指定(#数字)只能在表达式末尾哦"))
-        expr = replace(expr, r"#.*$" => "")
-        if !isempty(m.captures[1])
-            num = parse(Int, m.captures[1])
+function getUserRng(userId)
+    path = "$userId/ jrrpRng"
+    if haskey(userData, path)
+        if userData[path][1] == today()
+            return userData[path][2]
         end
+        delete!(userData, path)
     end
-    num <= 0 && throw(DiceError("悟理球无法骰不存在的骰子！"))
-    num >= 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
+    rng = Random.MersenneTwister(getJrrpSeed() ⊻ parse(UInt64, userId))
+    userData[path] = (today(), rng)
+    return rng
+end
+
+function saveUserRng(userId)
+    if getConfig("private", userId, "randomMode") == :jrrp
+        setJLD!(userData, "$userId/ jrrpRng", (today(), deepcopy(getRngState())))
+    end
+    setRngState!()
+end
+
+function rollDice(str::AbstractString; defaultDice = 100, lead = false, detailed = false)
+    m_comment = if match(r"\s", str) !== nothing
+        match(r"\s(\S*?[^0-9d()+\-*/#\s][\s\S]*)", str)
+    else
+        match(r"([^0-9d()+\-*/#\s][\s\S]*)", str)
+    end
+    comment = isnothing(m_comment) ? "" : m_comment.captures[1]
+    expr_str = replace(isnothing(m_comment) ? str : SubString(str, 1, m_comment.offset), r"\s" => "")
+    m = match(r"([0-9d()+\-*/]*)(#\d+)?", expr_str)
+    expr = m.captures[1]
+    num_str = m.captures[2]
+    num = 1
+    if num_str !== nothing
+        num = parse(Int, num_str[2:end])
+    end
+    num > 13 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
     if isempty(expr)
         expr = "1d$defaultDice"
     end
     if match(r"d\d*d", expr) !== nothing
-        throw(DiceError("表达式格式错误，算不出来惹"))
+        throw(DiceError("表达式有歧义，看看是不是有写出了XdYdZ样子的算式？"))
     end
-    expr = replace(expr, r"(?<!\d)d" => "1d")
-    expr = replace(expr, r"d(?!\d)" => "d$defaultDice")
-    if !lead
-        expr_ = replace(expr, r"(\d+)d(\d+)" => s"xdy(\1,\2)", "/" => "÷")
-    else
-        expr_ = replace(expr, r"(\d+)d(\d+)" => s"\1*\2", "/" => "÷")
-    end
+    expr = replace(expr, r"(?<![\d)])d" => "1d")
+    expr = replace(expr, r"d(?![\d(])" => "d$defaultDice")
 
-    expr__ = try
-        Meta.parse(expr_)
-    catch _
-        throw(DiceError("表达式格式错误，算不出来惹"))
-    end
+    try
+        if lead
+            _expr_ = replace(expr, "d" => "↓", "/" => "÷") |> Meta.parse
+            return (expr, eval(_expr_))
+        end
 
-    if num > 1
-        return ("$expr#$num", string([eval(expr__) for _ ∈ 1:num]))
+        parsed_expr = replace(expr, "d" => "↑", "/" => "÷") |> Meta.parse
+        _expr_ = expr_replace(parsed_expr, x -> x isa Int, x -> :(DiceIR($x)); skip = x -> (x.head == :call && x.args[1] == :↑))
+
+
+        if num > 1 # No detail for multiple roll
+            return ("$expr#$num", string([eval(_expr_).total for _ ∈ 1:num]))
+        end
+
+        result_IR = eval(_expr_)
+        reply_str = result_IR.expr
+        if detailed && 'd' ∈ result_IR.expr && match(r"^\[\d*\]$", result_IR.result) === nothing
+            reply_str *= " = $(result_IR.result)"
+        end
+        return (reply_str, result_IR.total)
+    catch err
+        throw(DiceError("表达式格式错误，算不出来惹"))
+        throw(err)
     end
-    return (expr, eval(expr__))
 end
 
 function skillCheck(success::Int, rule::Symbol, bonus::Int)
@@ -61,12 +81,12 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
         throw(DiceError("错误，成功率不合基本法"))
     end
 
-    fate = rand(1:100)
+    fate = rand(rng, 1:100)
     res = "1d100 = $(fate)"
 
     if bonus != 0
         r = fate % 10
-        bDice = rand(0:9, abs(bonus))
+        bDice = rand(rng, 0:9, abs(bonus))
         bFate = @. bDice * 10 + r
         replace!(bFate, 0 => 100)
         if bonus > 0
@@ -109,7 +129,15 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
 end
 
 function roll(args; groupId = "", userId = "")
-    config = getConfig(groupId, userId)
+    defaultDice = getConfig(groupId, userId, "defaultDice")
+    isDetailed = getConfig(groupId, userId, "detailedDice")
+    randomMode = getConfig("private", userId, "randomMode")
+    rng = @match randomMode begin
+        :jrrp => getUserRng(userId)
+        # :quantum => QuantumRNG()
+        _ => Random.default_rng()
+    end
+    setRngState!(rng)
 
     ops, b, p, str = args
     if ops === nothing
@@ -152,7 +180,8 @@ function roll(args; groupId = "", userId = "")
             if m !== nothing
                 success = parse(Int, m.captures[1])
                 res, check = skillCheck(success, rule, bonus)
-                res *= rand(diceDefault.customReply[check])
+                res *= rand(checkReply[check])
+                randomMode == :jrrp && saveUserRng(userId)
                 return DiceReply(res, hidden, true)
             end
         end
@@ -174,11 +203,13 @@ function roll(args; groupId = "", userId = "")
             end
         end
         res, check = skillCheck(success, rule, bonus)
-        res *= rand(diceDefault.customReply[check]) # 重构此处代码
+        res *= rand(checkReply[check])
+        randomMode == :jrrp && saveUserRng(userId)
         return DiceReply(res, hidden, true)
     end
 
-    expr, res = rollDice(str; defaultDice = config.defaultDice)
+    expr, res = rollDice(str; defaultDice = defaultDice, detailed = isDetailed) # 重写这该死的骰点
+    randomMode == :jrrp && saveUserRng(userId)
     return DiceReply("你骰出了 $expr = $res", hidden, true)
 end
 
@@ -186,6 +217,7 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
+
     str = args[1]
     str = replace(str, r"\s" => "")
     m = match(r"([d\d\+\-\*]+)/([d\d\+\-\*]+)", str)
@@ -212,18 +244,30 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
         sanMax -= inv["克苏鲁神话"]
     end
 
+    randomMode = getConfig("private", userId, "randomMode")
+    rng = @match randomMode begin
+        :jrrp => getUserRng(userId)
+        # :quantum => QuantumRNG()
+        _ => Random.default_rng()
+    end
+    setRngState!(rng)
+
     res, check = skillCheck(san, :book, 0)
     res = "$name 的理智检定：" * res
-    if check == :critical
+    @switch check begin
+        @case :critical
         expr, loss = rollDice(succ)
         res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
-    elseif check == :fumble
+
+        @case:fumble
         expr, loss = rollDice(fail; lead = true)
         res *= "大失败！\n朝闻道，夕死可矣。\n"
-    elseif check == :failure
+
+        @case:failure
         expr, loss = rollDice(fail)
         res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
-    else
+
+        @case _
         expr, loss = rollDice(succ)
         res *= "成功\n真正的调查员无畏觅见真实！可是捱过了这次，还能捱过几次呢？\n"
     end
@@ -240,6 +284,7 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
     delete!(inv, "理智")
     inv["理智"] = san
 
+    randomMode == :jrrp && saveUserRng(userId)
     return DiceReply(res)
 end
 
@@ -319,9 +364,6 @@ randChara = @eval function ()
     $charaTemplate
 end
 
-function randCharaDnd()
-end
-
 function charMakeDnd(args; kw...)
     m = match(r"^\s*(\d+)", args[1])
     num = isnothing(m) ? 1 : parse(Int, m.captures[1])
@@ -364,36 +406,53 @@ function botInfo(args; kw...)
     )
 end
 
-function getConfig(groupId, userId)
-    if groupId == "private"
-        isempty(userId) && throw(DiceError("错误，未知用户"))
-        path = "$userId/ config"
-        !haskey(userData, path) && (userData[path] = groupDefault)
-        return userData[path]
+function getConfig(groupId, userId) # This is read only
+    config = getConfig!(groupId, userId)
+    config_dict = Dict()
+    for key ∈ keys(config)
+        config_dict[key] = config[key]
     end
+    return config_dict
+end
+
+function getConfig(groupId, userId, conf::AbstractString)
+    return getConfig!(groupId, userId)[conf]
+end
+
+function getConfig!(groupId, userId) # This allows modification
+    isempty(userId) && throw(DiceError("错误，未知的用户"))
     isempty(groupId) && throw(DiceError("错误，群号丢失"))
-    !haskey(groupData, groupId) && (groupData[groupId] = groupDefault)
-    return groupData[groupId]
+
+    dataSet = groupId == "private" ? userData : groupData
+    path = groupId == "private" ? "$userId/ config" : groupId
+    default = groupId == "private" ? defaultUserConfig : defaultGroupConfig
+
+    if !haskey(dataSet, path)
+        config = JLD2.Group(dataSet, path)
+    else
+        config = dataSet[path]
+    end
+
+    for (key, val) in default
+        if !haskey(config, key)
+            config[key] = val
+        end
+    end
+
+    return config
 end
 
 function botSwitch(args; groupId = "", userId = "")
-    groupId == "private" && return DiceReply("只能在群聊中开关悟理球哦")
-    config = getConfig(groupId, userId)
+    config = getConfig!(groupId, userId)
     @switch args[1] begin
         @case "on"
-        if config.isOff
-            config.isOff = false
-            delete!(groupData, groupId)
-            groupData[groupId] = config
-            return DiceReply("悟理球出现了！")
-        end
-        return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
+        !config["isOff"] && return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
+        setJLD!(config, "isOff" => false)
+        return DiceReply("悟理球出现了！")
 
         @case "off"
-        config.isOff && return noReply
-        config.isOff = true
-        delete!(groupData, groupId)
-        groupData[groupId] = config
+        config["isOff"] && return noReply
+        setJLD!(config, "isOff" => true)
         return DiceReply("悟理球不知道哪里去了~")
 
         @case "exit"
@@ -407,31 +466,42 @@ function botSwitch(args; groupId = "", userId = "")
     return noReply
 end
 
-function diceConfig(args; groupId = "", userId = "")
+function diceSetConfig(args; groupId = "", userId = "")
     setting = args[1]
-    config = getConfig(groupId, userId)
-    if groupId == "private"
-        dataset = userData
-        config_path = "$userId/ config"
-    else
-        dataset = groupData
-        config_path = groupId
-    end
-
+    group_config = getConfig!(groupId, userId)
+    user_config = getConfig!("private", userId)
     @switch setting begin
         @case "dnd"
-        config.mode = :dnd
-        config.defaultDice = 20
-        delete!(dataset, config_path)
-        dataset[config_path] = config
+        setJLD!(group_config, "gameMode" => :dnd, "defaultDice" => 20)
         return DiceReply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
 
         @case "coc"
-        config.mode = :coc
-        config.defaultDice = 100
-        delete!(dataset, config_path)
-        dataset[config_path] = config
+        setJLD!(group_config, "gameMode" => :coc, "defaultDice" => 100)
         return DiceReply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
+
+        @case "detailed"
+        setJLD!(group_config, "detailedDice" => true)
+        return DiceReply("详细骰点模式已开启")
+
+        @case "simple"
+        setJLD!(group_config, "detailedDice" => false)
+        return DiceReply("详细骰点模式已关闭")
+
+        @case Re{r"rand=(default|jrrp|quantum)"}(capture)
+        mode = Symbol(capture[1])
+        setJLD!(user_config, "randomMode" => mode)
+        @switch mode begin
+            @case :default
+            return DiceReply("已切换到默认随机模式，原汁原味的计算机随机数。")
+
+            @case :jrrp
+            return DiceReply("已切换到人品随机模式，你的命运由今日人品决定！")
+
+            @case :quantum
+            return DiceReply("已切换到量子随机模式，每次骰点一毛钱哦~")
+
+            @case _
+        end
 
         @case _
     end
@@ -498,18 +568,18 @@ function invRename(args; groupId = "", userId = "") # 支持将非当前选择�
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
     name = userData[userId][" select"]
-    newname = replace(args[1], r"^\s*|\s*$" => "")
-    if isempty(newname)
+    new_name = replace(args[1], r"^\s*|\s*$" => "")
+    if isempty(new_name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
     end
-    if haskey(userData[userId], newname)
+    if haskey(userData[userId], new_name)
         throw(DiceError("错误，已存在同名角色"))
     end
-    userData[userId][newname] = userData[userId][name]
+    userData[userId][new_name] = userData[userId][name]
     delete!(userData[userId], name)
     delete!(userData[userId], " select")
-    userData[userId][" select"] = newname
-    return DiceReply("从现在开始你就是 $newname 啦！")
+    userData[userId][" select"] = new_name
+    return DiceReply("从现在开始你就是 $new_name 啦！")
 end
 
 function invRemove(args; groupId = "", userId = "")
@@ -671,31 +741,35 @@ function randomGas(args; kw...)
     return DiceReply(gasList[fate])
 end
 
-function getJrrpSeed()
-    date = today() |> string
-    haskey(jrrpCache, date) && return jrrpCache[date]
-
-    headers = Dict("x-api-key" => "6qrS9dAjZg5zwmi386Ppm7CkAQuMllgP1bpzPb3J")
+function getQuantum(length = 1, size = 4)
+    api_key = get(ENV, "SUPER_SECRET_QUANTUM_API_KEY", "")
+    headers = Dict("x-api-key" => api_key)
     resp = try
-        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=1&type=hex16&size=4", headers, readtimeout = 1)
+        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=4", headers, readtimeout = 1)
     catch err
         if err isa HTTP.Exceptions.TimeoutError
-            throw(DiceError("哦不，今日人品获取超时了:("))
+            throw(DiceError("量子超时:("))
         else
             throw(err)
         end
     end
     dataJSON = resp.body |> String |> JSON3.read
     if !dataJSON.success
-        throw(DiceError("今日人品获取失败"))
+        throw(DiceError("发生量子错误！"))
     end
-    jrrpCache[date] = seed = parse(UInt64, dataJSON.data[1], base = 16)
+    return parse.(UInt64, dataJSON.data, base = 16)
+end
+
+function getJrrpSeed()
+    date = today() |> string
+    haskey(jrrpCache, date) && return jrrpCache[date]
+    jrrpCache[date] = seed = getQuantum(1, 4)[1]
     return seed
 end
 
 function jrrp(args; userId = "", kw...)
     seed = getJrrpSeed()
-    rng = MersenneTwister(parse(UInt64, userId) ⊻ seed)
+    rng = MersenneTwister(parse(UInt64, userId) ⊻ seed ⊻ 0x196883)
     rp = rand(rng, 1:100)
     return DiceReply("今天你的手上粘了 $rp 个悟理球！")
 end

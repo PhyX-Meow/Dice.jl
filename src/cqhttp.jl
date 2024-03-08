@@ -42,4 +42,18 @@ function leaveChat(; chat_id)
     """
     HTTP.post(cq_http_server, ["Content-Type" => "application/json"], body = msg_json)
 end
+
+function isQQFriend(; userId)
+    return true
+
+    msg_json = """
+    {
+        "action": "get_friend_list"
+    }
+    """
+    reply = HTTP.post(cq_http_server, ["Content-Type" => "application/json"], body = msg_json)
+    list = JSON3.read(reply.body)
+    qq_list = map(x -> x.user_id, list)
+    return userId ∈ qq_list
+end
 ###

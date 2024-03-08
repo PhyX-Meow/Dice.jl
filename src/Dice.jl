@@ -35,16 +35,12 @@ function makeReplyJson(msg; text::AbstractString, type::AbstractString = msg.mes
     return JSON3.write(json_data)
 end
 
-function isQQFriend(ws; userId)
-    return true
-end
-
 function diceReplyLegacy(ws, msg, reply::DiceReply)
     isempty(reply.text) && return nothing
     length(reply.text) > 512 && WebSockets.send(ws, makeReplyJson(msg, text = "错误，回复消息过长或为空"))
 
     if reply.hidden
-        if isQQFriend(ws, userId = msg.user_id)
+        if isQQFriend(; userId = msg.user_id)
             for tt ∈ reply.text
                 WebSockets.send(ws, makeReplyJson(msg, text = tt, type = "private"))
                 sleep(0.05)
@@ -148,7 +144,7 @@ function diceMain(ws, msg)
     if msg.message_type == "group"
         chatType = :group
         groupId = msg.group_id |> string
-        ignore = haskey(groupData, groupId) ? groupData[groupId].isOff : groupDefault.isOff
+        ignore = getConfig(groupId, "everyone")["isOff"]
     elseif msg.message_type == "private"
         chatType = :private
         groupId = "private"
@@ -166,7 +162,8 @@ function diceMain(ws, msg)
         if m !== nothing
             ignore = false
             try
-                reply = @eval $(cmd.func)($(m.captures); groupId = $groupId, userId = $userId)
+                foo = eval(cmd.func)
+                reply = foo(m.captures; groupId = groupId, userId = userId)
             catch err
                 if err isa DiceError
                     reply = DiceReply(err.text)

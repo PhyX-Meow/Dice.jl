@@ -64,7 +64,7 @@ function diceMain(msg)
         return sendMessage(text = rand(kwList[str]), chat_id = chatId)
     end
 
-    str[1] ∉ ['.', '/', '。'] && return nothing
+    str[1] ∉ ['.', '/', '。', '🎲'] && return nothing
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
 
     if hash(msg.message.from.id) ∈ superAdminList

@@ -81,7 +81,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
         throw(DiceError("错误，成功率不合基本法"))
     end
 
-    fate = rand(rng, 1:100)
+    fate = rand(getRngState(), 1:100)
     res = "1d100 = $(fate)"
 
     if bonus != 0

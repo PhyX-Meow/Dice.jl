@@ -7,7 +7,7 @@
     end
 end
 
-function expr_replace(ex::Expr, cond::Function, func::Function; skip::Function = _ -> false)
+function expr_replace(ex, cond::Function, func::Function; skip::Function = _ -> false)
     function foo(ex)
         cond(ex) && return deepcopy(func(ex))
         if ex isa Expr
@@ -22,7 +22,7 @@ function expr_replace(ex::Expr, cond::Function, func::Function; skip::Function =
     foo(deepcopy(ex))
 end
 
-function expr_replace(ex::Expr, rules::Pair...; skip::Function = _ -> false)
+function expr_replace(ex, rules::Pair...; skip::Function = _ -> false)
     for (key, val) in rules
         ex = expr_replace(ex, key, val; skip = skip)
     end

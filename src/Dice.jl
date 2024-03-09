@@ -115,7 +115,7 @@ function diceMain(ws, msg)
         return WebSockets.send(ws, data)
     end
 
-    str[1] ∉ ['.', '/', '。'] && return nothing
+    str[1] ∉ ['.', '/', '。', '🎲'] && return nothing
     str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
     str = replace(str, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
 

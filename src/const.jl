@@ -1,7 +1,7 @@
 const diceVersion = v"0.5.3"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
-const self_id_qq = 1492467801
+const selfQQ = 0xa714e8ba18dcd69b
 
 const defaultUserConfig = Dict(
     "randomMode" => :default,

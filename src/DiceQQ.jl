@@ -69,9 +69,11 @@ function parseMsg(wrapped::QQMessage)
     end
 
     text = replace(msg.raw_message, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
-    m = match(Regex("^[CQ:at,qq=$self_id_qq]\\s*([\\S\\s]*)"), text)
+    m = match(r"^\[CQ:at,qq=(\d*)\]\s*([\S\s]*)", text)
     if m !== nothing
-        text = m.captures[1]
+        qq = m.captures[1]
+        hash(qq) != selfQQ && return nothing
+        text = m.captures[2]
     end
     return DiceMsg(groupId, userId, msg.message_id, text)
 end

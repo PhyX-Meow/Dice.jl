@@ -18,42 +18,33 @@ function run_bot(::QQMode, foo::Function)
     end
 end
 
-onebotPostJSON(msg_json) = HTTP.post(onebot_http_server, ["Content-Type" => "application/json"], body = msg_json)
+function onebotPostJSON(action, params)
+    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = params)
+end
 
 function sendGroupMessage(::QQMode; text, chat_id)
     msg_json = """
     {
-        "action": "send_group_msg",
-        "params": {
-            "group_id": $chat_id,
-            "message": "$text"
-        }
+        "group_id": $chat_id,
+        "message": "$text"
     }
     """
-    onebotPostJSON(msg_json)
+    onebotPostJSON("send_group_msg", msg_json)
 end
 
 function leaveGroup(::QQMode; chat_id)
     msg_json = """
     {
-        "action": "set_group_leave",
-        "params": {
-            "group_id": $chat_id
-        }
+        "group_id": $chat_id
     }
     """
-    onebotPostJSON(msg_json)
+    onebotPostJSON("set_group_leave", msg_json)
 end
 
 function isQQFriend(userId)
     return true
 
-    msg_json = """
-    {
-        "action": "get_friend_list"
-    }
-    """
-    reply = onebotPostJSON(msg_json)
+    reply = onebotPostJSON("get_friend_list", "")
     list = JSON3.read(reply.body)
     qq_list = map(x -> x.user_id, list)
     return userId ∈ qq_list
@@ -86,23 +77,20 @@ function parseMsg(wrapped::QQMessage)
 end
 
 function makeReplyJSON(msg; text::AbstractString, type::AbstractString = msg.message_type, ref::Bool = false)
-    json_data = Dict(
-        "action" => "send_msg",
-        "params" => Dict(),
-    )
-    json_data["params"]["message_type"] = type
+    json_data = Dict()
+    json_data["message_type"] = type
     if type == "private"
-        json_data["params"]["user_id"] = msg.user_id
+        json_data["user_id"] = msg.user_id
         if ref
             text = "[CQ:reply,id=$(msg.message_id)]" * text
         end
     elseif type == "group"
-        json_data["params"]["group_id"] = msg.group_id
+        json_data["group_id"] = msg.group_id
         if ref
             text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.user_id)]" * text
         end
     end
-    json_data["params"]["message"] = text
+    json_data["message"] = text
     return JSON3.write(json_data)
 end
 
@@ -110,21 +98,21 @@ function diceReply(wrapped::QQMessage, reply::DiceReply)
     msg = wrapped.body
     isempty(reply.text) && return nothing
     if length(reply.text) > 1024
-        onebotPostJSON(makeReplyJSON(msg, text = "错误，回复消息过长或为空"))
+        onebotPostJSON("send_msg", makeReplyJSON(msg, text = "错误，回复消息过长或为空"))
         return nothing
     end
     if reply.hidden
         if isQQFriend(msg.user_id)
             for tt ∈ reply.text
-                onebotPostJSON(makeReplyJSON(msg, text = tt, type = "private"))
+                onebotPostJSON("send_msg", makeReplyJSON(msg, text = tt, type = "private"))
                 sleep(0.05)
             end
         else
-            onebotPostJSON(makeReplyJSON(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
+            onebotPostJSON("send_msg", makeReplyJSON(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
         end
     else
         for tt ∈ reply.text
-            onebotPostJSON(makeReplyJSON(msg, text = tt, ref = reply.ref))
+            onebotPostJSON("send_msg", makeReplyJSON(msg, text = tt, ref = reply.ref))
             sleep(0.05)
         end
     end
@@ -134,25 +122,23 @@ end
 function handleRequest(msg)
     @switch msg.request_type begin
         @case "friend"
-        json_data = Dict(
-            "action" => "set_friend_add_request",
-            "params" => Dict(
-                "flag" => msg.flag,
-                "approve" => true,
-            ),
-        )
-        onebotPostJSON(JSON3.write(json_data))
+        msg_json = """
+        {
+            "flag" => msg.flag,
+            "approve" => true,
+        }
+        """
+        onebotPostJSON("set_friend_add_request", msg_json)
 
         @case "group"
         msg.sub_type != "invite" && return nothing
-        json_data = Dict(
-            "action" => "set_group_add_request",
-            "params" => Dict(
-                "flag" => msg.flag,
-                "approve" => true,
-            ),
-        )
-        onebotPostJSON(JSON3.write(json_data))
+        msg_json = """
+        {
+            "flag" => msg.flag,
+            "approve" => true,
+        }
+        """
+        onebotPostJSON("set_group_add_request", msg_json)
 
         @case _
     end

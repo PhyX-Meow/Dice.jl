@@ -7,7 +7,6 @@ using JSON3
 using Dates
 using Random
 using MLStyle
-using ConfigEnv
 
 struct DiceMsg
     groupId::String

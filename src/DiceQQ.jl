@@ -1,3 +1,5 @@
+using HTTP
+
 function run_bot(::QQMode, foo::Function)
     global onebot_ws_server = get(ENV, "CQ_WS_SERVER", "")
     global onebot_http_server = get(ENV, "CQ_HTTP_SERVER", "")

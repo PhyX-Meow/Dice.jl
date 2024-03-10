@@ -1,4 +1,5 @@
-include("utils.jl")
+const getRngState, setRngState! = new_global_state(Random.default_rng())
+const getQuantumState = new_quantum_state()
 
 macro dice_str(str)
     :(rollDice($str)[2])
@@ -26,13 +27,13 @@ end
 
 function rollDice(str::AbstractString; defaultDice = 100, lead = false, detailed = false)
     m_comment = if match(r"\s", str) !== nothing
-        match(r"\s(\S*?[^0-9d()+\-*/#\s][\s\S]*)", str)
+        match(r"\s(\S*?[^0-9dD()+\-*/#\s][\s\S]*)", str)
     else
-        match(r"([^0-9d()+\-*/#\s][\s\S]*)", str)
+        match(r"([^0-9dD()+\-*/#\s][\s\S]*)", str)
     end
     comment = isnothing(m_comment) ? "" : m_comment.captures[1]
     expr_str = replace(isnothing(m_comment) ? str : SubString(str, 1, m_comment.offset), r"\s" => "")
-    m = match(r"([0-9d()+\-*/]*)(#\d+)?", expr_str)
+    m = match(r"([0-9dD()+\-*/]*)(#\d+)?", expr_str)
     expr = m.captures[1]
     num_str = m.captures[2]
     num = 1
@@ -41,6 +42,7 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, detailed
     end
     num > 13 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
+    expr = replace(expr, "D" => "d")
     if isempty(expr)
         expr = "1d$defaultDice"
     end
@@ -456,8 +458,8 @@ function botSwitch(args; groupId = "", userId = "")
         return DiceReply("悟理球不知道哪里去了~")
 
         @case "exit"
-        sendMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
-        leaveChat(chat_id = parse(Int, groupId))
+        sendGroupMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
+        leaveGroup(chat_id = parse(Int, groupId))
         delete!(groupData, groupId)
         return noReply
 
@@ -739,25 +741,6 @@ end
 function randomGas(args; kw...)
     fate = (rand(1:6), rand(1:20))
     return DiceReply(gasList[fate])
-end
-
-function getQuantum(length = 1, size = 4)
-    api_key = get(ENV, "SUPER_SECRET_QUANTUM_API_KEY", "")
-    headers = Dict("x-api-key" => api_key)
-    resp = try
-        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=4", headers, readtimeout = 1)
-    catch err
-        if err isa HTTP.Exceptions.TimeoutError
-            throw(DiceError("量子超时:("))
-        else
-            throw(err)
-        end
-    end
-    dataJSON = resp.body |> String |> JSON3.read
-    if !dataJSON.success
-        throw(DiceError("发生量子错误！"))
-    end
-    return parse.(UInt64, dataJSON.data, base = 16)
 end
 
 function getJrrpSeed()

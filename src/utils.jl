@@ -56,16 +56,12 @@ function new_global_state(default_val)
     return (get, set!)
 end
 
-const getRngState, setRngState! = new_global_state(Random.default_rng())
-
 function new_quantum_state()
     state = UInt64[]
     function get()
         return state
     end
 end
-
-const getQuantumState = new_quantum_state()
 
 function getQuantumRng()
     quantumState = getQuantumState()
@@ -74,6 +70,25 @@ function getQuantumRng()
     end
     seed = pop!(quantumState)
     return MersenneTwister(seed)
+end
+
+function getQuantum(length = 1, size = 4)
+    api_key = get(ENV, "SUPER_SECRET_QUANTUM_API_KEY", "")
+    headers = Dict("x-api-key" => api_key)
+    resp = try
+        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=4", headers, readtimeout = 1)
+    catch err
+        if err isa HTTP.Exceptions.TimeoutError
+            throw(DiceError("量子超时:("))
+        else
+            throw(err)
+        end
+    end
+    dataJSON = resp.body |> String |> JSON3.read
+    if !dataJSON.success
+        throw(DiceError("发生量子错误！"))
+    end
+    return parse.(UInt64, dataJSON.data, base = 16)
 end
 
 function xdy(num::Integer, face::Integer; take::Integer = 0, rng = getRngState())

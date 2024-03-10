@@ -1,24 +1,7 @@
-const diceVersion = v"0.5.2"
+const diceVersion = v"0.5.3"
 
-struct DiceError <: Exception
-    text::String
-end
-
-struct DiceCmd
-    func::Symbol
-    reg::Regex
-    desp::String
-    options::Set{Symbol}
-end
-
-struct DiceReply
-    text::Array{AbstractString}
-    hidden::Bool
-    ref::Bool
-end
-DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply([str], hidden, ref)
-DiceReply(str::AbstractString) = DiceReply([str], false, true)
-const noReply = DiceReply(AbstractString[], false, false)
+const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
+const self_id_qq = 1492467801
 
 const defaultUserConfig = Dict(
     "randomMode" => :default,
@@ -348,8 +331,6 @@ const gasList = Dict(
     (6, 20) => "投掷两次，玩家任意选择其中一项特征。",
 )
 
-const superAdminList = [0xc45c1b20b131d1c8]
-const adminList = [0xc45c1b20b131d1c8, 0x192e269af0e0ce03]
 const cmdList = [
     DiceCmd(:roll, r"^r(?:([ach]+)|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
@@ -386,12 +367,13 @@ const helpText = """
     .help links 一些有用的链接
     .bot [on/off/exit] 开关bot及让bot自动退群
     .set [coc/dnd] COC和DND模式切换
-    .r[c/a][b/p][h] 检定，使用规则书规则/通用房规，奖励骰/乘法骰，暗骰
+    .set rand=[default/jrrp] 骰点模式切换
+    .r[c/a][b/p][h] COC检定，使用规则书规则/通用房规，奖励骰/乘法骰，暗骰
     .r XdY  简单的骰骰子哒，在末尾添加#N可以骰N次哦
     .coc [数量] COC七版人物做成
     .dnd [数量] DND五版随机属性值
     .jrrp 今日人品（据说数值越小越好）
-    .pc [new/rm/nn/list] 人物卡管理，新建/删除/重命名/列表
+    .pc [new/rm/nn/list] COC人物卡管理，新建/删除/重命名/列表
     .ti/li 疯狂发作-即时/总结症状抽取
     .gas 煤气灯特质抽取\
     """

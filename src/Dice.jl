@@ -1,9 +1,7 @@
 module Dice
 
-export run_dice
+export run_dice, TGMode, QQMode
 
-using Telegram, Telegram.API
-using HTTP
 using JLD2
 using JSON3
 using Dates
@@ -11,63 +9,82 @@ using Random
 using MLStyle
 using ConfigEnv
 
-include("const.jl")
-include("diceCommand.jl")
-
-function diceReplyLegacy(msg, reply::DiceReply)
-    isempty(reply.text) && return nothing
-    if maximum(length.(reply.text)) > 512
-        sendMessage(
-            text = "结果过长，无法发送！",
-            chat_id = msg.message.chat.id,
-            reply_to_message_id = msg.message.message_id,
-        )
-    end
-
-    parsed_text = replace.(reply.text, r"([_*[\]()~>#+\-=|{}.!])" => s"\\\1")
-    if reply.hidden
-        try
-            for tt ∈ parsed_text
-                sendMessage(text = tt, chat_id = msg.message.from.id, parse_mode = "MarkdownV2")
-            end
-        catch err
-            sendMessage(
-                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-                chat_id = msg.message.chat.id,
-                reply_to_message_id = msg.message.message_id,
-            )
-        end
-    elseif reply.ref
-        for tt ∈ parsed_text
-            sendMessage(text = tt, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id, parse_mode = "MarkdownV2")
-        end
-    else
-        for tt ∈ parsed_text
-            sendMessage(text = tt, chat_id = msg.message.chat.id, parse_mode = "MarkdownV2")
-        end
-    end
+struct DiceMsg
+    groupId::String
+    userId::String
+    messageId::Int64
+    text::String
 end
 
-function diceMain(msg)
+struct DiceError <: Exception
+    text::String
+end
+
+struct DiceCmd
+    func::Symbol
+    reg::Regex
+    desp::String
+    options::Set{Symbol}
+end
+
+struct DiceReply
+    text::Array{AbstractString}
+    hidden::Bool
+    ref::Bool
+end
+DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply([str], hidden, ref)
+DiceReply(str::AbstractString) = DiceReply([str], false, true)
+const noReply = DiceReply(AbstractString[], false, false)
+
+abstract type AbstractMessage end
+struct TGMessage <: AbstractMessage
+    body
+end
+struct QQMessage <: AbstractMessage
+    body
+end
+
+abstract type RunningMode end
+struct TGMode <: RunningMode end
+struct QQMode <: RunningMode end
+
+include("DiceTG.jl")
+include("DiceQQ.jl")
+include("const.jl")
+include("utils.jl")
+include("diceCommand.jl")
+
+function sendGroupMessage(; text, chat_id)
+    mode = running_mode
+    sendGroupMessage(mode; text = text, chat_id = chat_id)
+end
+
+function leaveGroup(; chat_id)
+    mode = running_mode
+    leaveGroup(mode; chat_id = chat_id)
+end
+
+function diceMain(msg::AbstractMessage)
 
     if debug_flag
-        show(msg)
+        show(msg.body)
         println()
     end
 
-    if !(haskey(msg, :message) && haskey(msg.message, :text))
-        return nothing
-    end
+    msg_parsed = parseMsg(msg)
+    isnothing(msg_parsed) && return nothing
+    groupId = msg_parsed.groupId
+    userId = msg_parsed.userId
+    str = msg_parsed.text
 
-    str = msg.message.text
     if haskey(kwList, str)
-        return sendMessage(text = rand(kwList[str]), chat_id = chatId)
+        return diceReply(msg, DiceReply(rand(kwList[str]), false, false))
     end
 
-    str[1] ∉ ['.', '/', '。', '🎲'] && return nothing
-    str = replace(str, r"^(\.|/|。)\s*|\s*$" => "")
+    str[1] ∉ ['.', '/', '。'] && return nothing
+    str = replace(str, r"^[./。]\s*|\s*$" => "")
 
-    if hash(msg.message.from.id) ∈ superAdminList
+    if hash(userId) ∈ superAdminList[running_mode]
         m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
             superCommand = m.captures[1]
@@ -80,25 +97,14 @@ function diceMain(msg)
                 else
                     err_msg = string(err)
                 end
-                return diceReplyLegacy(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
+                return diceReply(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
             end
-            return diceReplyLegacy(msg, DiceReply("执行结果：$ret", false, false))
+            return diceReply(msg, DiceReply("执行结果：$ret", false, false))
         end
     end
 
-    ignore = true
-    chatType = :unknown
-    groupId = msg.message.chat.id |> string
-    userId = msg.message.from.id |> string
-    if msg.message.chat.type ∈ ["group", "supergroup"]
-        chatType = :group
-        ignore = getConfig(groupId, "everyone")["isOff"]
-    elseif msg.message.chat.type == "private"
-        chatType = :private
-        groupId = "private"
-        ignore = false
-    end
-    chatType == :unknown && return nothing
+    chatType = groupId == "private" ? :private : :group
+    ignore = groupId == "private" ? false : getConfig(groupId, "everyone")["isOff"]
 
     reply = noReply
     for cmd ∈ cmdList
@@ -128,26 +134,23 @@ function diceMain(msg)
         end
     end
     if !ignore
-        return diceReplyLegacy(msg, reply)
+        return diceReply(msg, reply)
     end
     return nothing
 end
 
-function run_dice(; debug = false)
+function run_dice(mode; debug = false)
+    global running_mode = mode
+
     global debug_flag = false
     debug && (debug_flag = true)
 
-    !isfile("groupData.jld2") && jldsave("groupData.jld2")
-    global groupData = jldopen("groupData.jld2", "r+")
-
-    !isfile("jrrpCache.jld2") && jldsave("jrrpCache.jld2")
-    global jrrpCache = jldopen("jrrpCache.jld2", "r+")
-
-    !isfile("userData.jld2") && jldsave("userData.jld2")
-    global userData = jldopen("userData.jld2", "r+")
+    global groupData = jldopen("groupData.jld2", "a+")
+    global jrrpCache = jldopen("jrrpCache.jld2", "a+")
+    global userData = jldopen("userData.jld2", "a+")
 
     try
-        run_bot(diceMain)
+        run_bot(mode, diceMain)
     finally
         Base.close(groupData)
         Base.close(jrrpCache)
@@ -155,15 +158,4 @@ function run_dice(; debug = false)
     end
 end
 
-function julia_main()::Cint
-    dotenv()
-    try
-        run_dice()
-    catch
-        Base.invokelatest(Base.display_error, Base.catch_stack())
-        return 1
-    end
-    return 0
-end
-
-end # module
+end # Module

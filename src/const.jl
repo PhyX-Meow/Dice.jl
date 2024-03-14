@@ -368,6 +368,7 @@ const helpText = """
     .bot [on/off/exit] 开关bot及让bot自动退群
     .set [coc/dnd] COC和DND模式切换
     .set rand=[default/jrrp] 骰点模式切换
+    .set [detailed/simple] 骰点详细/简略显示
     .r[c/a][b/p][h] COC检定，使用规则书规则/通用房规，奖励骰/乘法骰，暗骰
     .r XdY  简单的骰骰子哒，在末尾添加#N可以骰N次哦
     .coc [数量] COC七版人物做成

@@ -374,7 +374,7 @@ function charMakeDnd(args; kw...)
 
     res = "DND5e 人物做成："
     for _ in 1:num
-        stats = [xdy(4, 6; take = 3) for _ ∈ 1:6]
+        stats = sort([xdy(4, 6; take = 3) for _ ∈ 1:6]; rev = true)
         res = res * "\n" * string(stats) * "，总和：" * string(sum(stats))
     end
     return DiceReply(res, false, false)
@@ -406,42 +406,6 @@ function botInfo(args; kw...)
         false,
         false,
     )
-end
-
-function getConfig(groupId, userId) # This is read only
-    config = getConfig!(groupId, userId)
-    config_dict = Dict()
-    for key ∈ keys(config)
-        config_dict[key] = config[key]
-    end
-    return config_dict
-end
-
-function getConfig(groupId, userId, conf::AbstractString)
-    return getConfig!(groupId, userId)[conf]
-end
-
-function getConfig!(groupId, userId) # This allows modification
-    isempty(userId) && throw(DiceError("错误，未知的用户"))
-    isempty(groupId) && throw(DiceError("错误，群号丢失"))
-
-    dataSet = groupId == "private" ? userData : groupData
-    path = groupId == "private" ? "$userId/ config" : groupId
-    default = groupId == "private" ? defaultUserConfig : defaultGroupConfig
-
-    if !haskey(dataSet, path)
-        config = JLD2.Group(dataSet, path)
-    else
-        config = dataSet[path]
-    end
-
-    for (key, val) in default
-        if !haskey(config, key)
-            config[key] = val
-        end
-    end
-
-    return config
 end
 
 function botSwitch(args; groupId = "", userId = "")

@@ -126,7 +126,7 @@ function handleRequest(msg)
         @case "friend"
         msg_json = """
         {
-            "flag" => msg.flag,
+            "flag" => $(msg.flag),
             "approve" => true,
         }
         """
@@ -136,7 +136,7 @@ function handleRequest(msg)
         msg.sub_type != "invite" && return nothing
         msg_json = """
         {
-            "flag" => msg.flag,
+            "flag" => $(msg.flag),
             "approve" => true,
         }
         """
@@ -150,10 +150,10 @@ end
 function handleNotice(msg)
     @switch msg.notice_type begin
         @case "group_increase"
-        msg.user_id == msg.self_id && onebotPostJSON(makeReplyJson(msg, text = "悟理球出现了！", type = "group"))
+        msg.user_id == msg.self_id && onebotPostJSON("send_msg", makeReplyJSON(msg, text = "悟理球出现了！", type = "group"))
 
         @case "friend_add"
-        onebotPostJSON(makeReplyJson(msg, text = "你现在也是手上粘着悟理球的 Friends 啦！", type = "private"))
+        onebotPostJSON("send_msg", makeReplyJSON(msg, text = "你现在也是手上粘着悟理球的 Friends 啦！", type = "private"))
 
         @case _
     end

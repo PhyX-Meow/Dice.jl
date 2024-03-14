@@ -75,6 +75,7 @@ function diceMain(msg::AbstractMessage)
     groupId = msg_parsed.groupId
     userId = msg_parsed.userId
     str = msg_parsed.text
+    isempty(str) && return nothing
 
     if haskey(kwList, str)
         return diceReply(msg, DiceReply(rand(kwList[str]), false, false))
@@ -103,7 +104,7 @@ function diceMain(msg::AbstractMessage)
     end
 
     chatType = groupId == "private" ? :private : :group
-    ignore = groupId == "private" ? false : getConfig(groupId, "everyone")["isOff"]
+    ignore = groupId == "private" ? false : getConfig(groupId, "everyone", "isOff")
 
     reply = noReply
     for cmd ∈ cmdList
@@ -139,10 +140,10 @@ function diceMain(msg::AbstractMessage)
 end
 
 function run_dice(mode; debug = false)
-    global running_mode = mode
-
     global debug_flag = false
     debug && (debug_flag = true)
+
+    global running_mode = mode
 
     global groupData = jldopen("groupData.jld2", "a+")
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")

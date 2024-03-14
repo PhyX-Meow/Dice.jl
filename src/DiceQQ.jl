@@ -19,7 +19,7 @@ function run_bot(::QQMode, foo::Function)
 end
 
 function onebotPostJSON(action, params)
-    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = params)
+    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = params, readtimeout = 1)
 end
 
 function sendGroupMessage(::QQMode; text, chat_id)
@@ -30,6 +30,16 @@ function sendGroupMessage(::QQMode; text, chat_id)
     }
     """
     onebotPostJSON("send_group_msg", msg_json)
+end
+
+function sendPrivateMessage(::QQMode; text, chat_id)
+    msg_json = """
+    {
+        "group_id": $chat_id,
+        "message": "$text"
+    }
+    """
+    onebotPostJSON("send_private_msg", msg_json)
 end
 
 function leaveGroup(::QQMode; chat_id)
@@ -126,8 +136,8 @@ function handleRequest(msg)
         @case "friend"
         msg_json = """
         {
-            "flag" => $(msg.flag),
-            "approve" => true,
+            "flag": "$(msg.flag)",
+            "approve": true
         }
         """
         onebotPostJSON("set_friend_add_request", msg_json)
@@ -136,8 +146,8 @@ function handleRequest(msg)
         msg.sub_type != "invite" && return nothing
         msg_json = """
         {
-            "flag" => $(msg.flag),
-            "approve" => true,
+            "flag": "$(msg.flag)",
+            "approve": true
         }
         """
         onebotPostJSON("set_group_add_request", msg_json)

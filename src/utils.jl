@@ -251,13 +251,6 @@ function getConfig!(groupId, userId) # This allows modification
     return config
 end
 
-struct GameLog
-    name::String
-    groupID::String
-    time::DateTime
-    logs::Vector{MessageLog}
-end
-
 struct MessageLog
     id::Int64
     time::DateTime
@@ -265,4 +258,11 @@ struct MessageLog
     userName::String
     content::String
     type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
+end
+
+struct GameLog
+    name::String
+    groupID::String
+    time::DateTime
+    logs::Vector{MessageLog}
 end

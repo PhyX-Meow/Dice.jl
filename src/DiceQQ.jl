@@ -10,6 +10,10 @@ function run_bot(::QQMode, foo::Function)
                 foo(QQMessage(msg))
             catch err
                 @error err
+                showerror(stdout, err)
+                println()
+                display(stacktrace(catch_backtrace()))
+                println()
                 if err isa InterruptException
                     break
                 end

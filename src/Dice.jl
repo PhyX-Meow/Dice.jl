@@ -82,6 +82,7 @@ function diceMain(rough_msg::AbstractMessage)
                     @reply(err.text)
                 else
                     if debug_flag
+                        @error err
                         showerror(stdout, err)
                         println()
                         display(stacktrace(catch_backtrace()))

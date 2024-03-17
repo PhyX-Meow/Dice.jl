@@ -1,4 +1,4 @@
-const diceVersion = v"0.5.4"
+const diceVersion = v"0.5.5"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
 const selfQQ = 0xa714e8ba18dcd69b
@@ -16,6 +16,15 @@ const defaultGroupConfig = Dict(
     "defaultDice" => 100,
     "gameMode" => :coc,
     "detailedDice" => false,
+)
+
+const checkReplySimple = Dict(
+    :critical => "大成功",
+    :extreme => "极难成功",
+    :hard => "困难成功",
+    :regular => "成功",
+    :failure => "失败",
+    :fumble => "大失败",
 )
 
 const checkReply = Dict(
@@ -334,7 +343,7 @@ const gasList = Dict(
 )
 
 const cmdList = [
-    DiceCmd(:roll, r"^r(?:([ach]+)|(\d?)b|(\d?)p)*\s*(.*)", "骰点或检定", Set([:group, :private])),
+    DiceCmd(:roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
     DiceCmd(:charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
@@ -356,6 +365,7 @@ const cmdList = [
     DiceCmd(:randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
     DiceCmd(:randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
     DiceCmd(:randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
+    DiceCmd(:logSet, r"^log\s*(on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
 ]

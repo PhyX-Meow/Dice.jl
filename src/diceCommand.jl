@@ -1,92 +1,5 @@
-const getRngState, setRngState! = new_global_state(Random.default_rng())
-const getQuantumState = new_quantum_state()
-
-# function (reply::DiceReply)(msg::DiceMsg)
-#     put!(message_channel, (msg, reply))
-# end
-
-macro reply(args...)
-    quote
-        put!(message_channel, (msg, DiceReply($(args...))))
-        return nothing
-    end |> esc
-end
-
 macro dice_str(str)
-    :(rollDice($str)[2])
-end
-
-function getUserRng(userId)
-    path = "$userId/ jrrpRng"
-    if haskey(userData, path)
-        if userData[path][1] == today()
-            return userData[path][2]
-        end
-        delete!(userData, path)
-    end
-    rng = Random.MersenneTwister(getJrrpSeed() ⊻ parse(UInt64, userId))
-    userData[path] = (today(), rng)
-    return rng
-end
-
-function saveUserRng(userId)
-    if getConfig("private", userId, "randomMode") == :jrrp
-        setJLD!(userData, "$userId/ jrrpRng", (today(), deepcopy(getRngState())))
-    end
-    setRngState!()
-end
-
-function rollDice(str::AbstractString; defaultDice = 100, lead = false, detailed = false)
-    m_comment = if match(r"\s", str) !== nothing
-        match(r"\s(\S*?[^0-9dD()+\-*/#\s][\s\S]*)", str)
-    else
-        match(r"([^0-9dD()+\-*/#\s][\s\S]*)", str)
-    end
-    comment = isnothing(m_comment) ? "" : m_comment.captures[1]
-    expr_str = replace(isnothing(m_comment) ? str : SubString(str, 1, m_comment.offset), r"\s" => "")
-    m = match(r"([0-9dD()+\-*/]*)(#\d+)?", expr_str)
-    expr = m.captures[1]
-    num_str = m.captures[2]
-    num = 1
-    if num_str !== nothing
-        num = parse(Int, num_str[2:end])
-    end
-    num > 13 && throw(DiceError("骰子太多了，骰不过来了qwq"))
-
-    expr = replace(expr, "D" => "d")
-    if isempty(expr)
-        expr = "1d$defaultDice"
-    end
-    if match(r"d\d*d", expr) !== nothing
-        throw(DiceError("表达式有歧义，看看是不是有写出了XdYdZ样子的算式？"))
-    end
-    expr = replace(expr, r"(?<![\d)])d" => "1d")
-    expr = replace(expr, r"d(?![\d(])" => "d$defaultDice")
-
-    try
-        if lead
-            _expr_ = replace(expr, "d" => "↓", "/" => "÷") |> Meta.parse
-            return (expr, eval(_expr_))
-        end
-
-        parsed_expr = replace(expr, "d" => "↑", "/" => "÷") |> Meta.parse
-        _expr_ = expr_replace(parsed_expr, x -> x isa Int, x -> :(DiceIR($x)); skip = x -> (x.head == :call && x.args[1] == :↑))
-
-
-        if num > 1 # No detail for multiple roll
-            return ("$expr#$num", string([eval(_expr_).total for _ ∈ 1:num]))
-        end
-
-        result_IR = eval(_expr_)
-        reply_str = result_IR.expr
-        if detailed && 'd' ∈ result_IR.expr && match(r"^\[\d*\]$", result_IR.result) === nothing
-            reply_str *= " = $(result_IR.result)"
-        end
-        return (reply_str, result_IR.total)
-    catch err
-        throw(DiceError("表达式格式错误，算不出来惹"))
-        throw(err)
-    end
+    :(rollDice($str).total)
 end
 
 function skillCheck(success::Int, rule::Symbol, bonus::Int) # 什么时候能骰多个呢
@@ -111,7 +24,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int) # 什么时候能骰
         end
     end
 
-    check = :na
+    check = :unknown
     if rule == :book
         check = @match fate begin
             1 => :critical
@@ -134,93 +47,140 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int) # 什么时候能骰
             _ => :failure
         end
     end
-    if check == :na
-        throw(DiceError("错误，找不到对应的规则"))
-    end
     res *= "/$(success)。"
     return res, check # 重构这里的代码
 end
 
-function roll(msg, args)
+function roll(msg, args) # Only COC check for now
     userId = msg.userId
-    groupId = msg.groupId
-    defaultDice = getConfig(groupId, userId, "defaultDice")
-    isDetailed = getConfig(groupId, userId, "detailedDice")
-    randomMode = getConfig("private", userId, "randomMode")
-    rng = @match randomMode begin
-        :jrrp => getUserRng(userId)
-        # :quantum => QuantumRNG()
-        _ => Random.default_rng()
-    end
-    setRngState!(rng)
+    options, str = args
+    isHidden = 'h' ∈ options
 
-    ops, b, p, str = args
-    if ops === nothing
-        ops = ""
-    end
-    bonus = 0
-    hidden = 'h' ∈ ops
-    book = 'c' ∈ ops
-    pop = 'a' ∈ ops
-    check = pop || book
-    if b !== nothing
-        bonus = 1
-        if b != ""
-            bonus = parse(Int, b)
-        end
-        check = true
-        if p !== nothing
-            @reply("人不能同时骰奖励骰和惩罚骰，至少不该。")
-        end
-    end
-    if p !== nothing
-        bonus = -1
-        if p != ""
-            bonus = -parse(Int, p)
-        end
-        check = true
-    end
+    if match(r"[acbp]", options) === nothing
+        defaultDice = getConfig(msg.groupId, msg.userId, "defaultDice")
+        isDetailed = getConfig(msg.groupId, msg.userId, "detailedDice")
 
-    if check
-        rule = pop ? :pop : :book
-        success = 1
-        patt = [r"\s(\d+)$", r"^(\d+)\s", r"(\d+)$", r"^(\d+)"]
-        for p ∈ patt
-            m = match(p, str)
-            if m !== nothing
-                success = parse(Int, m.captures[1])
-                res, check = skillCheck(success, rule, bonus)
-                res *= rand(checkReply[check])
-                randomMode == :jrrp && saveUserRng(userId)
-                @reply(res, hidden, true)
-            end
+        # Extract comment
+        m_comment = if match(r"\s", str) !== nothing
+            match(r"\s(\S*?[^0-9dD()+\-*/#\s][\s\S]*)", str)
+        else
+            match(r"([^0-9dD()+\-*/#\s][\s\S]*)", str)
         end
-        word = match(r"^([^\s\d]+)", str)
-        if word !== nothing
-            skill = word.captures[1] |> lowercase
-            if haskey(skillAlias, skill)
-                skill = skillAlias[skill]
-            end
-            if haskey(defaultSkill, skill)
-                success = defaultSkill[skill]
-            end
-            if haskey(userData[userId], " select")
-                name = userData[userId][" select"]
-                inv = userData[userId][name]
-                if haskey(inv, skill)
-                    success = inv[skill]
+        comment = isnothing(m_comment) ? "" : m_comment.captures[1]
+        str = replace(isnothing(m_comment) ? str : SubString(str, 1, m_comment.offset), r"\s" => "")
+
+        # Extract number of times
+        m = match(r"([0-9dD()+\-*/]*)(#\d+)?", str)
+        expr_str = m.captures[1]
+        num_str = m.captures[2]
+        num = 1
+        if num_str !== nothing
+            num = parse(Int, num_str[2:end])
+        end
+        num > 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
+
+        resultIRs = rollDice(expr_str; defaultDice = defaultDice, times = num)
+        reply_str = "你骰出了"
+        if isDetailed
+            for (i, L) ∈ pairs(resultIRs)
+                reply_str *= num > 1 ? "\n#$(i)：" : " "
+                reply_str *= "$(L.expr) = "
+                if 'd' ∈ L.expr && match(r"^\[\d*\]$", L.result) === nothing
+                    reply_str *= "$(L.result) = "
                 end
+                reply_str *= string(L.total)
             end
+        else
+            reply_str *= " " * string(map(L -> L.total, resultIRs))
         end
-        res, check = skillCheck(success, rule, bonus)
-        res *= rand(checkReply[check])
-        randomMode == :jrrp && saveUserRng(userId)
-        @reply(res, hidden, true)
+        @reply(reply_str, isHidden, true)
     end
 
-    expr, res = rollDice(str; defaultDice = defaultDice, detailed = isDetailed) # 重写这该死的骰点
-    randomMode == :jrrp && saveUserRng(userId)
-    @reply("你骰出了 $expr = $res", hidden, true)
+    book = 'c' ∈ options
+    pop = 'a' ∈ options
+    book && pop && @reply("检定不能同时使用两种规则，至少不该。")
+    rule = pop ? :pop : :book
+
+    bonus = 0
+    for m ∈ eachmatch(r"(\d*)([bp])", options)
+        num = isempty(m.captures[1]) ? 1 : parse(Int, m.captures[1])
+        if m.captures[2] == "p"
+            num = -num
+        end
+        bonus += num
+    end
+
+    # Extract number of times
+    m = match(r"([^#]*)(#\d+)?", str)
+    check_str = m.captures[1]
+    num_str = m.captures[2]
+    num = 1
+    if num_str !== nothing
+        num = parse(Int, num_str[2:end])
+    end
+    num > 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
+
+    success = 1
+    patt = [r"\s(\d+)$", r"^(\d+)\s", r"(\d+)$", r"^(\d+)"]
+    for p ∈ patt
+        m = match(p, check_str)
+        if m !== nothing
+            success = parse(Int, m.captures[1])
+            @goto _do_check_
+        end
+    end
+    word = match(r"^([^\s\d]+)", check_str)
+    if word !== nothing
+        skill = word.captures[1] |> lowercase
+        if haskey(skillAlias, skill)
+            skill = skillAlias[skill]
+        end
+        if haskey(defaultSkill, skill)
+            success = defaultSkill[skill]
+        end
+        if haskey(userData[userId], " select")
+            name = userData[userId][" select"]
+            inv = userData[userId][name]
+            if haskey(inv, skill)
+                success = inv[skill]
+            end
+        end
+    end
+
+    @label _do_check_
+    reply_str = ""
+    for i ∈ 1:num
+        i > 1 && (reply_str *= "\n")
+        res, check = skillCheck(success, rule, bonus)
+        reply_str *= num > 1 ? "#$(i)：" : ""
+        reply_str *= res
+        reply_str *= num > 1 ? checkReplySimple[check] : rand(checkReply[check])
+    end
+    @reply(reply_str, isHidden, true)
+end
+
+function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 1)
+    str = replace(str, "D" => "d")
+    if isempty(str)
+        str = "1d$defaultDice"
+    end
+    if match(r"d\d*d", str) !== nothing
+        throw(DiceError("表达式有歧义，看看是不是有写出了XdYdZ样子的算式？"))
+    end
+    str = replace(str, r"(?<![\d)])d" => "1d")
+    str = replace(str, r"d(?![\d(])" => "d$defaultDice")
+
+    try
+        if lead
+            result = replace(str, "d" => "↓", "/" => "÷") |> Meta.parse |> eval
+            return [DiceIR(str, string(result), result, dice_op_precedence[:num])]
+        end
+        expr = replace(str, "d" => "↑", "/" => "÷") |> Meta.parse
+        _expr_ = expr_replace(expr, x -> x isa Int, x -> :(DiceIR($x)); skip = x -> (x.head == :call && x.args[1] == :↑))
+        return [eval(_expr_) for _ ∈ 1:times]
+    catch err
+        throw(DiceError("表达式格式错误，算不出来惹"))
+    end
 end
 
 function sanCheck(msg, args) # To do: 恐惧症/躁狂症
@@ -255,33 +215,27 @@ function sanCheck(msg, args) # To do: 恐惧症/躁狂症
         sanMax -= inv["克苏鲁神话"]
     end
 
-    randomMode = getConfig("private", userId, "randomMode")
-    rng = @match randomMode begin
-        :jrrp => getUserRng(userId)
-        # :quantum => QuantumRNG()
-        _ => Random.default_rng()
-    end
-    setRngState!(rng)
-
     res, check = skillCheck(san, :book, 0)
     res = "$name 的理智检定：" * res
     @switch check begin
         @case :critical
-        expr, loss = rollDice(succ)
+        resultIR = rollDice(succ)[1]
         res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
 
         @case :fumble
-        expr, loss = rollDice(fail; lead = true)
+        resultIR = rollDice(fail; lead = true)[1]
         res *= "大失败！\n朝闻道，夕死可矣。\n"
 
         @case :failure
-        expr, loss = rollDice(fail)
+        resultIR = rollDice(fail)[1]
         res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
 
         @case _
-        expr, loss = rollDice(succ)
+        resultIR = rollDice(succ)[1]
         res *= "成功\n真正的调查员无畏觅见真实！可是捱过了这次，还能捱过几次呢？\n"
     end
+    expr = resultIR.expr
+    loss = resultIR.total
     san = max(0, san - loss)
     res *= "理智损失：$(expr) = $(loss)，当前剩余理智：$(san)/$(sanMax)"
     if san == 0
@@ -289,13 +243,7 @@ function sanCheck(msg, args) # To do: 恐惧症/躁狂症
     elseif loss >= 5
         res *= "\n单次理智损失超过 5 点，调查员已陷入临时性疯狂，使用 .ti/.li 可以获取随机疯狂发作症状"
     end
-
-    delete!(inv, "SaveTime")
-    inv["SaveTime"] = now()
-    delete!(inv, "理智")
-    inv["理智"] = san
-
-    randomMode == :jrrp && saveUserRng(userId)
+    setJLD!(inv, "理智" => san, "SaveTime" => now())
     @reply(res)
 end
 
@@ -322,16 +270,13 @@ function skillEn(msg, args)
     else
         throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
     end
-    fate = rand(1:100)
+    fate = rand(getRngState(), 1:100)
     if fate <= success
         @reply("1d100 = $(fate)/$(success)\n失败了，什么事情都没有发生.jpg")
     end
 
-    up = rand(1:10)
-    delete!(inv, skill)
-    inv[skill] = success + up
-    delete!(inv, "SaveTime")
-    inv["SaveTime"] = now()
+    up = rand(getRngState(), 1:10)
+    setJLD!(inv, skill => success + up, "SaveTime" => now())
 
     @reply(
         """
@@ -399,7 +344,7 @@ function charMake(msg, args)
     res = [randChara() for _ ∈ 1:num]
     res[1] = "7 版人物做成：\n" * res[1]
     for str ∈ res
-        _reply_(str, false, false)
+        DiceReply(str, false, false)(msg)
     end
 end
 
@@ -490,6 +435,10 @@ function diceSetConfig(msg, args)
     @reply("这是什么设置？悟理球不知道喵！")
 end
 
+function logSet(msg, args)
+    @reply("Working in Progress...")
+end
+
 function diceHelp(msg, args)
     m = match(r"link", args[1])
     m !== nothing && @reply(helpLinks, false, false)
@@ -547,55 +496,58 @@ function invNew(msg, args) # 新建空白人物
 end
 
 function invRename(msg, args) # 支持将非当前选择人物卡重命名
-    userId = msg.userId
-    if !haskey(userData, "$userId/ select")
+    if !haskey(userData, "$(msg.userId)/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
-    name = userData[userId][" select"]
+    user = userData[msg.userId]
+    name = user[" select"]
     new_name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(new_name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
     end
-    if haskey(userData[userId], new_name)
+    if haskey(user, new_name)
         throw(DiceError("错误，已存在同名角色"))
     end
-    userData[userId][new_name] = userData[userId][name]
-    delete!(userData[userId], name)
-    delete!(userData[userId], " select")
-    userData[userId][" select"] = new_name
+    new_inv = JLD2.Group(user, new_name)
+    inv = user[name]
+    for skill ∈ keys(inv)
+        new_inv[skill] = inv[skill]
+    end
+    delete!(user, name)
+    delete!(user, " select")
+    user[" select"] = new_name
     @reply("从现在开始你就是 $new_name 啦！")
 end
 
 function invRemove(msg, args)
-    userId = msg.userId
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
     end
-    if !(haskey(userData, userId) && haskey(userData[userId], name))
+    if !haskey(userData, "$(msg.userId)/$name")
         throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
     end
-    delete!(userData[userId], name)
-    if haskey(userData[userId], " select") && userData[userId][" select"] == name
-        delete!(userData[userId], " select")
+    user = userData[msg.userId]
+    delete!(user, name)
+    if haskey(user, " select") && user[" select"] == name
+        delete!(user, " select")
     end
     @reply("$name 已从这个世界上清除")
 end
 
 function invSelect(msg, args) # 与 invRemove 合并
-    userId = msg.userId
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
     end
-    if !(haskey(userData, userId) && haskey(userData[userId], name))
+    if !haskey(userData, "$(msg.userId)/$name")
         throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
     end
-    if haskey(userData[userId], " select") && userData[userId][" select"] == name
+    user = userData[msg.userId]
+    if haskey(user, " select") && user[" select"] == name
         @reply("你已经是 $name 了，不用再切换了")
     end
-    delete!(userData[userId], " select")
-    userData[userId][" select"] = name
+    setJLD!(user, " select" => name)
     @reply("你现在变成 $name 啦！")
 end
 
@@ -672,7 +624,9 @@ function skillSet(msg, args) # Add .st rm
             skill = skillAlias[skill]
         end
         text *= '\n' * skill * '\t'
-        expr, res = rollDice(m.captures[3])
+        resultIR = rollDice(m.captures[3])[1]
+        expr = resultIR.expr
+        res = resultIR.total
         base = 0
         if haskey(inv, skill)
             base = inv[skill]
@@ -686,8 +640,7 @@ function skillSet(msg, args) # Add .st rm
             res = base - res
         end
         res = max(0, res)
-        delete!(inv, skill)
-        inv[skill] = res
+        setJLD!(inv, skill => res)
         if isempty(flag)
             if match(r"[d\+\-]", expr) !== nothing
                 text *= "$base => $expr = $res"
@@ -698,10 +651,7 @@ function skillSet(msg, args) # Add .st rm
             text *= "$base $flag$expr => $res"
         end
     end
-
-    delete!(inv, "SaveTime")
-    inv["SaveTime"] = now()
-
+    setJLD!(inv, "SaveTime" => now())
     @reply(text)
 end
 

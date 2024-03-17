@@ -40,28 +40,6 @@ struct TGMode <: RunningMode end
 struct QQMode <: RunningMode end
 struct NotRunning <: RunningMode end
 
-struct MessageLog
-    id::Int64
-    time::DateTime
-    userId::String
-    userName::String
-    content::String
-    type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
-end
-
-struct GameLog
-    name::String
-    groupID::String
-    time::DateTime
-    logs::Vector{MessageLog}
-end
-
-function diceLogging(C::Channel)
-    for logItem in C
-        continue
-    end
-end
-
 @active Re{r::Regex}(x) begin
     m = match(r, string(x))
     if m !== nothing
@@ -73,8 +51,23 @@ end
 
 macro assure(ex)
     quote
-        $(esc(ex)) && return nothing
-    end
+        !$(ex) && return nothing
+    end |> esc
+end
+
+function _reply_(msg, reply::DiceReply)
+    put!(message_channel, (msg, reply))
+end
+
+function (reply::DiceReply)(msg::DiceMsg)
+    _reply_(msg, reply)
+end
+
+macro reply(args...)
+    quote
+        _reply_(msg, DiceReply($(args...)))
+        return nothing
+    end |> esc
 end
 
 function expr_replace(ex, cond::Function, func::Function; skip::Function = _ -> false)
@@ -160,6 +153,65 @@ function getQuantum(length = 1, size = 4)
         throw(DiceError("发生量子错误！"))
     end
     return parse.(UInt64, dataJSON.data, base = 16)
+end
+
+function getConfig(groupId, userId) # This is read only
+    config = getConfig!(groupId, userId)
+    config_dict = Dict()
+    for key ∈ keys(config)
+        config_dict[key] = config[key]
+    end
+    return config_dict
+end
+
+function getConfig(groupId, userId, conf::AbstractString)
+    return getConfig!(groupId, userId)[conf]
+end
+
+function getConfig!(groupId, userId) # This allows modification
+    isempty(userId) && throw(DiceError("错误，未知的用户"))
+    isempty(groupId) && throw(DiceError("错误，群号丢失"))
+
+    dataSet = groupId == "private" ? userData : groupData
+    path = groupId == "private" ? "$userId/ config" : groupId
+    default = groupId == "private" ? defaultUserConfig : defaultGroupConfig
+
+    if !haskey(dataSet, path)
+        config = JLD2.Group(dataSet, path)
+    else
+        config = dataSet[path]
+    end
+
+    for (key, val) in default
+        if !haskey(config, key)
+            config[key] = val
+        end
+    end
+
+    return config
+end
+
+const getRngState, setRngState! = new_global_state(Random.default_rng())
+const getQuantumState = new_quantum_state()
+
+function getUserRng(userId)
+    path = "$userId/ jrrpRng"
+    if haskey(userData, path)
+        if userData[path][1] == today()
+            return userData[path][2]
+        end
+        delete!(userData, path)
+    end
+    rng = Random.MersenneTwister(getJrrpSeed() ⊻ parse(UInt64, userId))
+    userData[path] = (today(), rng)
+    return rng
+end
+
+function saveUserRng(userId)
+    if getConfig("private", userId, "randomMode") == :jrrp
+        setJLD!(userData, "$userId/ jrrpRng", (today(), deepcopy(getRngState())))
+    end
+    setRngState!()
 end
 
 function xdy(num::Integer, face::Integer; take::Integer = 0, rng = getRngState())
@@ -285,38 +337,24 @@ begin
     ↓(L, R) = L * R
 end
 
-function getConfig(groupId, userId) # This is read only
-    config = getConfig!(groupId, userId)
-    config_dict = Dict()
-    for key ∈ keys(config)
-        config_dict[key] = config[key]
-    end
-    return config_dict
+struct MessageLog
+    id::Int64
+    time::DateTime
+    userId::String
+    userName::String
+    content::String
+    type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
 end
 
-function getConfig(groupId, userId, conf::AbstractString)
-    return getConfig!(groupId, userId)[conf]
+struct GameLog
+    name::String
+    groupID::String
+    time::DateTime
+    items::Vector{MessageLog}
 end
 
-function getConfig!(groupId, userId) # This allows modification
-    isempty(userId) && throw(DiceError("错误，未知的用户"))
-    isempty(groupId) && throw(DiceError("错误，群号丢失"))
-
-    dataSet = groupId == "private" ? userData : groupData
-    path = groupId == "private" ? "$userId/ config" : groupId
-    default = groupId == "private" ? defaultUserConfig : defaultGroupConfig
-
-    if !haskey(dataSet, path)
-        config = JLD2.Group(dataSet, path)
-    else
-        config = dataSet[path]
+function diceLogging(C::Channel)
+    for logItem in C
+        continue
     end
-
-    for (key, val) in default
-        if !haskey(config, key)
-            config[key] = val
-        end
-    end
-
-    return config
 end

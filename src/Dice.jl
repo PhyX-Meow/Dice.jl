@@ -60,14 +60,21 @@ function diceMain(rough_msg::AbstractMessage)
                 else
                     err_msg = string(err)
                 end
-                return @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
+                @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
             end
-            return @reply("执行结果：$ret", false, false)
+            @reply("执行结果：$ret", false, false)
         end
     end
 
+    # Dice command
     chatType = groupId == "private" ? :private : :group
     ignore = groupId == "private" ? false : getConfig(groupId, "everyone", "isOff")
+    randomMode = getConfig("private", userId, "randomMode")
+    rng = @match randomMode begin
+        :jrrp => getUserRng(userId)
+        # :quantum => QuantumRNG()
+        _ => Random.default_rng()
+    end
 
     for cmd ∈ cmdList
         if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
@@ -76,25 +83,26 @@ function diceMain(rough_msg::AbstractMessage)
         m = match(cmd.reg, str)
         if m !== nothing
             foo = eval(cmd.func)
-            @async try
+            setRngState!(rng)
+            try
                 foo(msg, m.captures)
             catch err
-                if err isa DiceError
-                    @reply(err.text)
-                else
-                    if debug_flag
-                        showerror(stdout, err)
-                        println()
-                        display(stacktrace(catch_backtrace()))
-                        println()
-                    end
-                    err_msg = string(err)
-                    @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
+                err isa DiceError && @reply(err.text)
+                if debug_flag
+                    showerror(stdout, err)
+                    println()
+                    display(stacktrace(catch_backtrace()))
+                    println()
                 end
+                @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
+            finally
+                saveUserRng(userId)
             end
             break
         end
     end
+
+    # Message
     nothing
 end
 
@@ -113,7 +121,7 @@ function run_dice(mode; debug = false)
     global userData = jldopen("userData.jld2", "a+")
 
     @async diceReply(mode, message_channel)
-    # @async diceLogging(log_channel)
+    @async diceLogging(log_channel)
 
     try
         run_bot(mode, diceMain)

@@ -436,6 +436,45 @@ function diceSetConfig(msg, args)
 end
 
 function logSet(msg, args)
+    op, str = args
+    name = replace(str, r"^\s*|\s*$" => "")
+    groupId = msg.groupId
+    group = groupData[groupId]
+    @switch op begin
+        @case "on"
+        haskey(active_log, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
+        haskey(group, "logs/$name") && @reply("同名日志已存在，悟理球不忍心擅自把它删掉")
+        active_log[groupId] = Ref(GameLog(name, groupId, now(), MessageLog[]))
+        @reply("(搬小板凳)开始记录 $name 的故事~")
+
+        @case "off"
+        !haskey(active_log, groupId) && @reply("你要关什么？悟理球现在两手空空")
+        log_ref = pop!(active_log, groupId)
+        group["logs/$name"] = log_ref[]
+        @reply("$name 的故事结束了，悟理球已经全都记下来了！")
+
+        @case _
+    end
+    nothing
+end
+
+function logList(msg, args)
+    groupId = msg.groupId
+    group = groupData[groupId]
+    logging = haskey(active_log, groupId) ? active_log(groupId)[].name : ""
+    reply_str = isempty(logging) ? "没有正在记录的日志~\n" : "正在记录：$logging\n"
+    if !haskey(group, "logs") || isempty(group["logs"])
+        reply_str *= "没有记录完成的日志~"
+    else
+        reply_str *= "记录完成的日志："
+        for name ∈ keys(group["logs"])
+            reply_str *= "\n$(name)"
+        end
+    end
+    @reply(reply_str)
+end
+
+function logGet(msg, args)
     @reply("Working in Progress...")
 end
 

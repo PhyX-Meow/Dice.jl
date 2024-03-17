@@ -38,9 +38,13 @@ function diceMain(rough_msg::AbstractMessage)
     userId = msg.userId
     str = msg.text
 
+    if msg.type == "group"
+        put!(log_channel, MessageLog(msg))
+    end
+
     # Keyword reply
     if haskey(kwList, str)
-        return diceReply(msg, DiceReply(rand(kwList[str]), false, false))
+        @reply(rand(kwList[str]), false, false)
     end
 
     str[1] ∉ ['.', '/', '。'] && return nothing
@@ -96,14 +100,11 @@ function diceMain(rough_msg::AbstractMessage)
                 end
                 @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
             finally
-                saveUserRng(userId)
+                randomMode == :jrrp && saveUserRng(userId)
             end
             break
         end
     end
-
-    # Message
-    nothing
 end
 
 # Global variables
@@ -111,6 +112,8 @@ running_mode = NotRunning()
 debug_flag = false
 const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
 const log_channel = Channel{MessageLog}(64)
+const active_log = Dict()
+# const rngState = Ref{AbstractRNG}(Random.default_rng())
 
 function run_dice(mode; debug = false)
     global running_mode = mode

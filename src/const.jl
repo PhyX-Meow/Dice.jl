@@ -1,4 +1,4 @@
-const diceVersion = v"0.5.5"
+const diceVersion = v"0.6.0"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
 const selfQQ = 0xa714e8ba18dcd69b
@@ -347,7 +347,7 @@ const cmdList = [
     DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
     DiceCmd(:charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
     DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
-    DiceCmd(:botSwitch, r"^bot (on|off|exit)", "bot开关", Set([:group, :off])),
+    DiceCmd(:botSwitch, r"^bot\s*(on|off|exit)", "bot开关", Set([:group, :off])),
     DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
     DiceCmd(:diceSetConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
     DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
@@ -356,7 +356,7 @@ const cmdList = [
     DiceCmd(:invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
     DiceCmd(:invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
     DiceCmd(:invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
-    DiceCmd(:invList, r"^pc(?: list)?\s*$", "当前人物卡列表", Set([:group, :private])),
+    DiceCmd(:invList, r"^pc\s*(?:list)?$", "当前人物卡列表", Set([:group, :private])),
     DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
     DiceCmd(:skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
     DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
@@ -366,6 +366,8 @@ const cmdList = [
     DiceCmd(:randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
     DiceCmd(:randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
     DiceCmd(:logSet, r"^log\s*(on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
+    DiceCmd(:logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
+    DiceCmd(:logGet, r"^log\s*(get|export)\s*(.*)", "导出群聊日志", Set([:group])),
     DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
 ]

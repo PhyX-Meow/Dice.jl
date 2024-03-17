@@ -64,10 +64,12 @@ function parseMsg(wrapped::QQMessage)
     time = unix2datetime(msg.time) + local_time_shift
     groupId = "private"
     userId = msg.user_id |> string
+    userName = msg.sender.nickname
     type = msg.message_type
     if type == "group"
         msg.sub_type != "normal" && return nothing
         groupId = msg.group_id |> string
+        !isempty(msg.sender.card) && (userName = msg.sender.card)
     elseif type == "private"
         msg.sub_type != "friend" && return nothing
     else
@@ -82,7 +84,7 @@ function parseMsg(wrapped::QQMessage)
         text = m.captures[2]
     end
     isempty(text) && return nothing
-    return DiceMsg(time, type, groupId, userId, msg.message_id, text)
+    return DiceMsg(time, type, groupId, userId, userName, msg.message_id, text)
 end
 
 function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::AbstractString = msg.type, ref::Bool = false)
@@ -96,12 +98,15 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::AbstractString 
         target = "user"
         target_id = msg.userId
         CQref = ref ? "[CQ:reply,id=$(msg.message_id)]" : ""
+
+        @case _
     end
+    text_escape = replace(text, r"\n" => "\\n")
     """
     {
         "message_type": "$type",
         "$(target)_id": $(target_id),
-        "message": "$(CQref)$(text)"
+        "message": "$(CQref)$(text_escape)"
     }
     """
 end
@@ -115,11 +120,9 @@ function diceReply(::QQMode, C::Channel)
         end
 
         isempty(reply.text) && return nothing
-        if length(reply.text) > 1024
+        resp = if length(reply.text) > 1024
             onebotPostJSON("send_msg", makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！"))
-            continue
-        end
-        if reply.hidden
+        elseif reply.hidden
             if isQQFriend(msg.userId)
                 onebotPostJSON("send_msg", makeReplyJSON(msg, text = reply.text, type = "private"))
             else
@@ -127,6 +130,10 @@ function diceReply(::QQMode, C::Channel)
             end
         else
             onebotPostJSON("send_msg", makeReplyJSON(msg, text = reply.text, ref = reply.ref))
+        end
+
+        if debug_flag
+            println(resp)
         end
     end
 end

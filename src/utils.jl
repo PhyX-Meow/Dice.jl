@@ -3,6 +3,7 @@ struct DiceMsg
     type::String
     groupId::String
     userId::String
+    userName::String
     message_id::Int64
     text::String
 end
@@ -340,11 +341,12 @@ end
 struct MessageLog
     id::Int64
     time::DateTime
+    groupId::String
     userId::String
     userName::String
     content::String
-    type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
 end
+MessageLog(msg::DiceMsg) = MessageLog(msg.message_id, msg.time, msg.groupId, msg.userId, msg.userName, msg.text)
 
 struct GameLog
     name::String
@@ -355,6 +357,11 @@ end
 
 function diceLogging(C::Channel)
     for logItem in C
-        continue
+        if haskey(active_log, groupId)
+            push!(active_log[groupId][].logs, logItem)
+        end
     end
+end
+
+function exportLog(groupId::String, name::String)
 end

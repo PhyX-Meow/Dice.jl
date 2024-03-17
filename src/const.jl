@@ -1,7 +1,8 @@
-const diceVersion = v"0.5.3"
+const diceVersion = v"0.5.4"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
 const selfQQ = 0xa714e8ba18dcd69b
+const local_time_shift = Hour(8)
 
 const defaultUserConfig = Dict(
     "randomMode" => :default,
@@ -169,6 +170,7 @@ const skillAlias = Dict(
     "剑" => "刀剑",
     "hp" => "体力",
     "mp" => "魔法",
+    "电锯" => "链锯",
     "修改日期" => "SaveTime", "日期" => "SaveTime",
 )
 
@@ -347,7 +349,7 @@ const cmdList = [
     DiceCmd(:invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
     DiceCmd(:invList, r"^pc(?: list)?\s*$", "当前人物卡列表", Set([:group, :private])),
     DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
-    DiceCmd(:skillShow, r"^st show\s*(.*)", "查询技能值", Set([:group, :private])),
+    DiceCmd(:skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
     DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
     DiceCmd(:sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
     DiceCmd(:skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),

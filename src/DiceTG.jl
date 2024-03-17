@@ -17,48 +17,54 @@ function parseMsg(wrapped::TGMessage)
     msg = wrapped.body
     !haskey(msg, :message) && return nothing
     !haskey(msg.message, :text) && return nothing
+    time = unix2datetime(msg.message.date) + local_time_shift
     groupId = msg.message.chat.id |> string
     userId = msg.message.from.id |> string
     msg.message.chat.type ∉ ["group", "supergroup", "private"] && return nothing
+    type = "group"
     if msg.message.chat.type == "private"
-        groupId = "private"
+        groupId = type = "private"
     end
-    return DiceMsg(groupId, userId, msg.message.message_id, msg.message.text)
+    text = msg.message.text
+    isempty(text) && return nothing
+    return DiceMsg(time, type, groupId, userId, msg.message.message_id, text)
 end
 
-function diceReply(wrapped::TGMessage, reply::DiceReply)
-    msg = wrapped.body
-    isempty(reply.text) && return nothing
-    if maximum(length.(reply.text)) > 1024
-        Telegram.API.sendMessage(
-            text = "结果过长，无法发送！",
-            chat_id = msg.message.chat.id,
-            reply_to_message_id = msg.message.message_id,
-        )
-        return nothing
-    end
+function diceReply(::TGMode, C::Channel)
+    for (msg, reply) ∈ C
 
-    parsed_text = replace.(reply.text, r"([_*[\]()~>#+\-=|{}.!])" => s"\\\1")
-    if reply.hidden
-        try
-            for tt ∈ parsed_text
-                Telegram.API.sendMessage(text = tt, chat_id = msg.message.from.id, parse_mode = "MarkdownV2")
-            end
-        catch err
+        if debug_flag
+            println(string(msg))
+            println(string(reply))
+        end
+
+        isempty(reply.text) && return nothing
+        user_id = parse(Int64, msg.userId)
+        chat_id = parse(Int64, msg.type == "group" ? msg.groupId : msg.userId)
+        if length(reply.text) > 1024
             Telegram.API.sendMessage(
-                text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
-                chat_id = msg.message.chat.id,
-                reply_to_message_id = msg.message.message_id,
+                text = "结果太长了，悟理球不想刷屏，所以就不发啦！",
+                chat_id = chat_id,
+                reply_to_message_id = msg.message_id,
             )
+            continue
         end
-    elseif reply.ref
-        for tt ∈ parsed_text
-            Telegram.API.sendMessage(text = tt, chat_id = msg.message.chat.id, reply_to_message_id = msg.message.message_id, parse_mode = "MarkdownV2")
-        end
-    else
-        for tt ∈ parsed_text
-            Telegram.API.sendMessage(text = tt, chat_id = msg.message.chat.id, parse_mode = "MarkdownV2")
+
+        parsed_text = replace(reply.text, r"([_*[\]()~>#+\-=|{}.!])" => s"\\\1")
+        if reply.hidden
+            try
+                Telegram.API.sendMessage(text = parsed_text, chat_id = user_id, parse_mode = "MarkdownV2")
+            catch err
+                Telegram.API.sendMessage(
+                    text = "错误，可能是因为悟理球没有私聊权限，请尝试私聊向悟理球发送 /start",
+                    chat_id = chat_id,
+                    reply_to_message_id = msg.message_id,
+                )
+            end
+        elseif reply.ref
+            Telegram.API.sendMessage(text = parsed_text, chat_id = chat_id, reply_to_message_id = msg.message_id, parse_mode = "MarkdownV2")
+        else
+            Telegram.API.sendMessage(text = parsed_text, chat_id = chat_id, parse_mode = "MarkdownV2")
         end
     end
-    nothing
 end

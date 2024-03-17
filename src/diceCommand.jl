@@ -1,6 +1,17 @@
 const getRngState, setRngState! = new_global_state(Random.default_rng())
 const getQuantumState = new_quantum_state()
 
+# function (reply::DiceReply)(msg::DiceMsg)
+#     put!(message_channel, (msg, reply))
+# end
+
+macro reply(args...)
+    quote
+        put!(message_channel, (msg, DiceReply($(args...))))
+        return nothing
+    end |> esc
+end
+
 macro dice_str(str)
     :(rollDice($str)[2])
 end
@@ -78,8 +89,8 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, detailed
     end
 end
 
-function skillCheck(success::Int, rule::Symbol, bonus::Int)
-    if success >= 1 << 16
+function skillCheck(success::Int, rule::Symbol, bonus::Int) # 什么时候能骰多个呢
+    if success > 512
         throw(DiceError("错误，成功率不合基本法"))
     end
 
@@ -88,7 +99,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
 
     if bonus != 0
         r = fate % 10
-        bDice = rand(rng, 0:9, abs(bonus))
+        bDice = rand(getRngState(), 0:9, abs(bonus))
         bFate = @. bDice * 10 + r
         replace!(bFate, 0 => 100)
         if bonus > 0
@@ -130,7 +141,9 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
     return res, check # 重构这里的代码
 end
 
-function roll(args; groupId = "", userId = "")
+function roll(msg, args)
+    userId = msg.userId
+    groupId = msg.groupId
     defaultDice = getConfig(groupId, userId, "defaultDice")
     isDetailed = getConfig(groupId, userId, "detailedDice")
     randomMode = getConfig("private", userId, "randomMode")
@@ -157,7 +170,7 @@ function roll(args; groupId = "", userId = "")
         end
         check = true
         if p !== nothing
-            return DiceReply("人不能同时骰奖励骰和惩罚骰，至少不该。")
+            @reply("人不能同时骰奖励骰和惩罚骰，至少不该。")
         end
     end
     if p !== nothing
@@ -169,12 +182,7 @@ function roll(args; groupId = "", userId = "")
     end
 
     if check
-        if pop
-            rule = :pop
-        elseif book
-            rule = :book
-        end
-
+        rule = pop ? :pop : :book
         success = 1
         patt = [r"\s(\d+)$", r"^(\d+)\s", r"(\d+)$", r"^(\d+)"]
         for p ∈ patt
@@ -184,7 +192,7 @@ function roll(args; groupId = "", userId = "")
                 res, check = skillCheck(success, rule, bonus)
                 res *= rand(checkReply[check])
                 randomMode == :jrrp && saveUserRng(userId)
-                return DiceReply(res, hidden, true)
+                @reply(res, hidden, true)
             end
         end
         word = match(r"^([^\s\d]+)", str)
@@ -207,15 +215,16 @@ function roll(args; groupId = "", userId = "")
         res, check = skillCheck(success, rule, bonus)
         res *= rand(checkReply[check])
         randomMode == :jrrp && saveUserRng(userId)
-        return DiceReply(res, hidden, true)
+        @reply(res, hidden, true)
     end
 
     expr, res = rollDice(str; defaultDice = defaultDice, detailed = isDetailed) # 重写这该死的骰点
     randomMode == :jrrp && saveUserRng(userId)
-    return DiceReply("你骰出了 $expr = $res", hidden, true)
+    @reply("你骰出了 $expr = $res", hidden, true)
 end
 
-function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
+function sanCheck(msg, args) # To do: 恐惧症/躁狂症
+    userId = msg.userId
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -238,7 +247,7 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
         throw(DiceError("错误，没有找到当前角色的理智值，是不是已经疯了？"))
     end
     if san == 0
-        return DiceReply("不用检定了，$name 已经永久疯狂了。")
+        @reply("不用检定了，$name 已经永久疯狂了。")
     end
 
     sanMax = 99
@@ -261,11 +270,11 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
         expr, loss = rollDice(succ)
         res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
 
-        @case:fumble
+        @case :fumble
         expr, loss = rollDice(fail; lead = true)
         res *= "大失败！\n朝闻道，夕死可矣。\n"
 
-        @case:failure
+        @case :failure
         expr, loss = rollDice(fail)
         res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
 
@@ -287,10 +296,11 @@ function sanCheck(args; groupId = "", userId = "") # To do: 恐惧症/躁狂症
     inv["理智"] = san
 
     randomMode == :jrrp && saveUserRng(userId)
-    return DiceReply(res)
+    @reply(res)
 end
 
-function skillEn(args; groupId = "", userId = "")
+function skillEn(msg, args)
+    userId = msg.userId
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -314,7 +324,7 @@ function skillEn(args; groupId = "", userId = "")
     end
     fate = rand(1:100)
     if fate <= success
-        return DiceReply("1d100 = $(fate)/$(success)\n失败了，什么事情都没有发生.jpg")
+        @reply("1d100 = $(fate)/$(success)\n失败了，什么事情都没有发生.jpg")
     end
 
     up = rand(1:10)
@@ -323,12 +333,12 @@ function skillEn(args; groupId = "", userId = "")
     delete!(inv, "SaveTime")
     inv["SaveTime"] = now()
 
-    return DiceReply(
+    @reply(
         """
         1d100 = $(fate)/$(success)
         成功！$name 的 $skill 成长：
         1d10 = $(up)，$success => $(success+up)\
-        """,
+        """
     )
 end
 
@@ -366,37 +376,39 @@ randChara = @eval function ()
     $charaTemplate
 end
 
-function charMakeDnd(args; kw...)
+function charMakeDnd(msg, args)
     m = match(r"^\s*(\d+)", args[1])
     num = isnothing(m) ? 1 : parse(Int, m.captures[1])
-    num > 10 && return DiceReply("单次人物做成最多 10 个哦，再多算不过来了")
-    num <= 0 && return DiceReply("啊咧，你要捏几个人来着")
+    num > 10 && @reply("单次人物做成最多 10 个哦，再多算不过来了")
+    num <= 0 && @reply("啊咧，你要捏几个人来着")
 
     res = "DND5e 人物做成："
     for _ in 1:num
         stats = sort([xdy(4, 6; take = 3) for _ ∈ 1:6]; rev = true)
         res = res * "\n" * string(stats) * "，总和：" * string(sum(stats))
     end
-    return DiceReply(res, false, false)
+    @reply(res, false, false)
 end
 
-function charMake(args; kw...)
+function charMake(msg, args)
     m = match(r"^\s*(\d+)", args[1])
     num = isnothing(m) ? 1 : parse(Int, m.captures[1])
-    num > 10 && return DiceReply("单次人物做成最多 10 个哦，再多算不过来了")
-    num <= 0 && return DiceReply("啊咧，你要捏几个人来着")
+    num > 10 && @reply("单次人物做成最多 10 个哦，再多算不过来了")
+    num <= 0 && @reply("啊咧，你要捏几个人来着")
 
     res = [randChara() for _ ∈ 1:num]
     res[1] = "7 版人物做成：\n" * res[1]
-    return DiceReply(res, false, false)
+    for str ∈ res
+        _reply_(str, false, false)
+    end
 end
 
-function botStart(args; kw...)
-    return DiceReply("你现在也是手上粘着悟理球的 Friends 啦！", false, false)
+function botStart(msg, args)
+    @reply("你现在也是手上粘着悟理球的 Friends 啦！", false, false)
 end
 
-function botInfo(args; kw...)
-    return DiceReply(
+function botInfo(msg, args)
+    @reply(
         """
         Dice Julian, made by 悟理(@phyxmeow).
         Version $diceVersion
@@ -408,79 +420,84 @@ function botInfo(args; kw...)
     )
 end
 
-function botSwitch(args; groupId = "", userId = "")
+function botSwitch(msg, args)
+    userId = msg.userId
+    groupId = msg.groupId
     config = getConfig!(groupId, userId)
     @switch args[1] begin
         @case "on"
-        !config["isOff"] && return DiceReply("悟理球已经粘在你的手上了，要再来一个吗")
+        !config["isOff"] && @reply("悟理球已经粘在你的手上了，要再来一个吗")
         setJLD!(config, "isOff" => false)
-        return DiceReply("悟理球出现了！")
+        @reply("悟理球出现了！")
 
         @case "off"
-        config["isOff"] && return noReply
+        config["isOff"] && return nothing
         setJLD!(config, "isOff" => true)
-        return DiceReply("悟理球不知道哪里去了~")
+        @reply("悟理球不知道哪里去了~")
 
         @case "exit"
         sendGroupMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
         leaveGroup(chat_id = parse(Int, groupId))
         delete!(groupData, groupId)
-        return noReply
+        return nothing
 
         @case _
     end
-    return noReply
+    nothing
 end
 
-function diceSetConfig(args; groupId = "", userId = "")
+function diceSetConfig(msg, args)
+    userId = msg.userId
+    groupId = msg.groupId
     setting = args[1]
-    group_config = getConfig!(groupId, userId)
-    user_config = getConfig!("private", userId)
+    groupConfig = getConfig!(groupId, userId)
+    userConfig = getConfig!("private", userId)
     @switch setting begin
         @case "dnd"
-        setJLD!(group_config, "gameMode" => :dnd, "defaultDice" => 20)
-        return DiceReply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
+        setJLD!(groupConfig, "gameMode" => :dnd, "defaultDice" => 20)
+        @reply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
 
         @case "coc"
-        setJLD!(group_config, "gameMode" => :coc, "defaultDice" => 100)
-        return DiceReply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
+        setJLD!(groupConfig, "gameMode" => :coc, "defaultDice" => 100)
+        @reply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
 
         @case "detailed"
-        setJLD!(group_config, "detailedDice" => true)
-        return DiceReply("详细骰点模式已开启")
+        setJLD!(groupConfig, "detailedDice" => true)
+        @reply("详细骰点模式已开启")
 
         @case "simple"
-        setJLD!(group_config, "detailedDice" => false)
-        return DiceReply("详细骰点模式已关闭")
+        setJLD!(groupConfig, "detailedDice" => false)
+        @reply("详细骰点模式已关闭")
 
         @case Re{r"rand=(default|jrrp|quantum)"}(capture)
         mode = Symbol(capture[1])
-        setJLD!(user_config, "randomMode" => mode)
+        setJLD!(userConfig, "randomMode" => mode)
         @switch mode begin
             @case :default
-            return DiceReply("已切换到默认随机模式，原汁原味的计算机随机数。")
+            @reply("已切换到默认随机模式，原汁原味的计算机随机数。")
 
             @case :jrrp
-            return DiceReply("已切换到人品随机模式，你的命运由今日人品决定！")
+            @reply("已切换到人品随机模式，你的命运由今日人品决定！")
 
             @case :quantum
-            return DiceReply("已切换到量子随机模式，每次骰点一毛钱哦~")
+            @reply("已切换到量子随机模式，每次骰点一毛钱哦~")
 
             @case _
         end
 
         @case _
     end
-    return DiceReply("这是什么设置？悟理球不知道喵！")
+    @reply("这是什么设置？悟理球不知道喵！")
 end
 
-function diceHelp(args; kw...)
+function diceHelp(msg, args)
     m = match(r"link", args[1])
-    m !== nothing && return DiceReply(helpLinks, false, false)
-    return DiceReply(helpText, false, false)
+    m !== nothing && @reply(helpLinks, false, false)
+    @reply(helpText, false, false)
 end
 
-function invNew(args; groupId = "", userId = "") # 新建空白人物
+function invNew(msg, args) # 新建空白人物
+    userId = msg.userId
     str = args[1]
     m = match(r"(.*)-(.*)", str)
     if m !== nothing
@@ -526,10 +543,11 @@ function invNew(args; groupId = "", userId = "") # 新建空白人物
         delete!(userData[userId], " select")
     end
     userData[userId][" select"] = name
-    return DiceReply("你的角色已经刻在悟理球的 DNA 里了。")
+    @reply("你的角色已经刻在悟理球的 DNA 里了。")
 end
 
-function invRename(args; groupId = "", userId = "") # 支持将非当前选择人物卡重命名
+function invRename(msg, args) # 支持将非当前选择人物卡重命名
+    userId = msg.userId
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -545,10 +563,11 @@ function invRename(args; groupId = "", userId = "") # 支持将非当前选择�
     delete!(userData[userId], name)
     delete!(userData[userId], " select")
     userData[userId][" select"] = new_name
-    return DiceReply("从现在开始你就是 $new_name 啦！")
+    @reply("从现在开始你就是 $new_name 啦！")
 end
 
-function invRemove(args; groupId = "", userId = "")
+function invRemove(msg, args)
+    userId = msg.userId
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
@@ -560,10 +579,11 @@ function invRemove(args; groupId = "", userId = "")
     if haskey(userData[userId], " select") && userData[userId][" select"] == name
         delete!(userData[userId], " select")
     end
-    return DiceReply("$name 已从这个世界上清除")
+    @reply("$name 已从这个世界上清除")
 end
 
-function invSelect(args; groupId = "", userId = "") # 与 invRemove 合并
+function invSelect(msg, args) # 与 invRemove 合并
+    userId = msg.userId
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，我怎么什么都没收到"))
@@ -572,18 +592,19 @@ function invSelect(args; groupId = "", userId = "") # 与 invRemove 合并
         throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
     end
     if haskey(userData[userId], " select") && userData[userId][" select"] == name
-        return DiceReply("你已经是 $name 了，不用再切换了")
+        @reply("你已经是 $name 了，不用再切换了")
     end
     delete!(userData[userId], " select")
     userData[userId][" select"] = name
-    return DiceReply("你现在变成 $name 啦！")
+    @reply("你现在变成 $name 啦！")
 end
 
-function invLock(args; kw...)
-    return DiceReply("WIP.")
+function invLock(msg, args)
+    @reply("Working in Progress...")
 end
 
-function invList(args; groupId = "", userId = "") # 支持按照编号删除
+function invList(msg, args) # 支持按照编号删除
+    userId = msg.userId
     select_str = "当前未选定任何角色"
     list_str = "角色卡列表为空"
     if haskey(userData, userId)
@@ -601,10 +622,11 @@ function invList(args; groupId = "", userId = "") # 支持按照编号删除
             list_str = "备选角色：\n" * list_temp
         end
     end
-    return DiceReply(select_str * '\n' * "—————————————————\n" * list_str)
+    @reply(select_str * '\n' * "—————————————————\n" * list_str)
 end
 
-function skillShow(args; groupId = "", userId = "")
+function skillShow(msg, args)
+    userId = msg.userId
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
@@ -624,19 +646,20 @@ function skillShow(args; groupId = "", userId = "")
         else
             throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
         end
-        return DiceReply("$name 的 $(skill)：$success")
+        @reply("$name 的 $(skill)：$success")
     end
-    return DiceReply("显示所有技能值的功能还木有写出来...")
+    @reply("显示所有技能值的功能还木有写出来...")
 end
 
-function skillSet(args; groupId = "", userId = "") # Add .st rm
+function skillSet(msg, args) # Add .st rm
+    userId = msg.userId
     if !haskey(userData, "$userId/ select")
         throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
     end
 
     str = replace(args[2], r"\s" => "")
     if args[1] === nothing && length(str) >= 32
-        return DiceReply("悟理球的 .st 指令为修改当前人物卡的技能值，如果要新建人物卡请使用 .new，如果确认要一次性修改大量技能值请使用 .st force")
+        @reply("悟理球的 .st 指令为修改当前人物卡的技能值，如果要新建人物卡请使用 .new，如果确认要一次性修改大量技能值请使用 .st force")
     end
 
     name = userData[userId][" select"]
@@ -679,32 +702,32 @@ function skillSet(args; groupId = "", userId = "") # Add .st rm
     delete!(inv, "SaveTime")
     inv["SaveTime"] = now()
 
-    return DiceReply(text)
+    @reply(text)
 end
 
-function randomTi(args; kw...)
+function randomTi(msg, args)
     fate = rand(1:10)
     res = """
     你的疯狂发作-即时症状：
     1d10 = $fate
     $(tiList[fate])\
     """
-    return DiceReply(res)
+    @reply(res)
 end
 
-function randomLi(args; kw...)
+function randomLi(msg, args)
     fate = rand(1:10)
     res = """
     你的疯狂发作-总结症状：
     1d10 = $fate
     $(liList[fate])\
     """
-    return DiceReply(res)
+    @reply(res)
 end
 
-function randomGas(args; kw...)
+function randomGas(msg, args)
     fate = (rand(1:6), rand(1:20))
-    return DiceReply(gasList[fate])
+    @reply(gasList[fate])
 end
 
 function getJrrpSeed()
@@ -714,13 +737,14 @@ function getJrrpSeed()
     return seed
 end
 
-function jrrp(args; userId = "", kw...)
+function jrrp(msg, args)
+    userId = msg.userId
     seed = getJrrpSeed()
     rng = MersenneTwister(parse(UInt64, userId) ⊻ seed ⊻ 0x196883)
     rp = rand(rng, 1:100)
-    return DiceReply("今天你的手上粘了 $rp 个悟理球！")
+    @reply("今天你的手上粘了 $rp 个悟理球！")
 end
 
-function fuck2060(args...)
-    return DiceReply("玩你🐎透明字符呢，滚！", false, true)
+function fuck2060(msg, args)
+    @reply("玩你🐎透明字符呢，滚！", false, true)
 end

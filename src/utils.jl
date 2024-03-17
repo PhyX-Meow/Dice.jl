@@ -1,9 +1,79 @@
+struct DiceMsg
+    time::DateTime
+    type::String
+    groupId::String
+    userId::String
+    message_id::Int64
+    text::String
+end
+
+struct DiceError <: Exception
+    text::String
+end
+
+struct DiceCmd
+    func::Symbol
+    reg::Regex
+    desp::String
+    options::Set{Symbol}
+end
+
+struct DiceReply
+    text::String
+    hidden::Bool
+    ref::Bool
+end
+DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply(str, hidden, ref)
+DiceReply(str::AbstractString) = DiceReply(str, false, true)
+const noReply = DiceReply("", false, false)
+
+abstract type AbstractMessage end
+struct TGMessage <: AbstractMessage
+    body
+end
+struct QQMessage <: AbstractMessage
+    body
+end
+
+abstract type RunningMode end
+struct TGMode <: RunningMode end
+struct QQMode <: RunningMode end
+struct NotRunning <: RunningMode end
+
+struct MessageLog
+    id::Int64
+    time::DateTime
+    userId::String
+    userName::String
+    content::String
+    type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
+end
+
+struct GameLog
+    name::String
+    groupID::String
+    time::DateTime
+    logs::Vector{MessageLog}
+end
+
+function diceLogging(C::Channel)
+    for logItem in C
+        continue
+    end
+end
+
 @active Re{r::Regex}(x) begin
     m = match(r, string(x))
     if m !== nothing
         Some(m.captures)
     else
         nothing
+    end
+end
+
+macro assure(ex)
+    quote
+        $(esc(ex)) && return nothing
     end
 end
 
@@ -249,20 +319,4 @@ function getConfig!(groupId, userId) # This allows modification
     end
 
     return config
-end
-
-struct MessageLog
-    id::Int64
-    time::DateTime
-    userId::String
-    userName::String
-    content::String
-    type::Symbol # user_speaking, user_action, user_comment, dice_command, dice_reply, dice_error
-end
-
-struct GameLog
-    name::String
-    groupID::String
-    time::DateTime
-    logs::Vector{MessageLog}
 end

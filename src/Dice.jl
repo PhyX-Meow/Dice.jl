@@ -8,49 +8,10 @@ using Dates
 using Random
 using MLStyle
 
-struct DiceMsg
-    groupId::String
-    userId::String
-    messageId::Int64
-    text::String
-end
-
-struct DiceError <: Exception
-    text::String
-end
-
-struct DiceCmd
-    func::Symbol
-    reg::Regex
-    desp::String
-    options::Set{Symbol}
-end
-
-struct DiceReply
-    text::Array{AbstractString}
-    hidden::Bool
-    ref::Bool
-end
-DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply([str], hidden, ref)
-DiceReply(str::AbstractString) = DiceReply([str], false, true)
-const noReply = DiceReply(AbstractString[], false, false)
-
-abstract type AbstractMessage end
-struct TGMessage <: AbstractMessage
-    body
-end
-struct QQMessage <: AbstractMessage
-    body
-end
-
-abstract type RunningMode end
-struct TGMode <: RunningMode end
-struct QQMode <: RunningMode end
-
+include("utils.jl")
+include("const.jl")
 include("DiceTG.jl")
 include("DiceQQ.jl")
-include("const.jl")
-include("utils.jl")
 include("diceCommand.jl")
 
 function sendGroupMessage(; text, chat_id)
@@ -63,20 +24,20 @@ function leaveGroup(; chat_id)
     leaveGroup(mode; chat_id = chat_id)
 end
 
-function diceMain(msg::AbstractMessage)
+function diceMain(rough_msg::AbstractMessage)
 
     if debug_flag
-        show(msg.body)
+        show(rough_msg.body)
         println()
     end
 
-    msg_parsed = parseMsg(msg)
-    isnothing(msg_parsed) && return nothing
-    groupId = msg_parsed.groupId
-    userId = msg_parsed.userId
-    str = msg_parsed.text
-    isempty(str) && return nothing
+    msg = parseMsg(rough_msg)
+    isnothing(msg) && return nothing
+    groupId = msg.groupId
+    userId = msg.userId
+    str = msg.text
 
+    # Keyword reply
     if haskey(kwList, str)
         return diceReply(msg, DiceReply(rand(kwList[str]), false, false))
     end
@@ -84,6 +45,7 @@ function diceMain(msg::AbstractMessage)
     str[1] ∉ ['.', '/', '。'] && return nothing
     str = replace(str, r"^[./。]\s*|\s*$" => "")
 
+    # Super command
     if hash(userId) ∈ superAdminList[running_mode]
         m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
@@ -97,29 +59,27 @@ function diceMain(msg::AbstractMessage)
                 else
                     err_msg = string(err)
                 end
-                return diceReply(msg, DiceReply("执行失败，错误信息：\n```\n$err_msg\n```", false, false))
+                return @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
             end
-            return diceReply(msg, DiceReply("执行结果：$ret", false, false))
+            return @reply("执行结果：$ret", false, false)
         end
     end
 
     chatType = groupId == "private" ? :private : :group
     ignore = groupId == "private" ? false : getConfig(groupId, "everyone", "isOff")
 
-    reply = noReply
     for cmd ∈ cmdList
         if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
             continue
         end
         m = match(cmd.reg, str)
         if m !== nothing
-            ignore = false
-            try
-                foo = eval(cmd.func)
-                reply = foo(m.captures; groupId = groupId, userId = userId)
+            foo = eval(cmd.func)
+            @async try
+                foo(msg, m.captures)
             catch err
                 if err isa DiceError
-                    reply = DiceReply(err.text)
+                    @reply(err.text)
                 else
                     if debug_flag
                         showerror(stdout, err)
@@ -127,27 +87,32 @@ function diceMain(msg::AbstractMessage)
                         display(stacktrace(catch_backtrace()))
                         println()
                     end
-                    reply = DiceReply("遇到了触及知识盲区的错误.jpg")
+                    err_msg = string(err)
+                    @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
                 end
             end
             break
         end
     end
-    if !ignore
-        return diceReply(msg, reply)
-    end
-    return nothing
+    nothing
 end
 
-function run_dice(mode; debug = false)
-    global debug_flag = false
-    debug && (debug_flag = true)
+# Global variables
+running_mode = NotRunning()
+debug_flag = false
+const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
+const log_channel = Channel{MessageLog}(64)
 
+function run_dice(mode; debug = false)
     global running_mode = mode
+    debug && (global debug_flag = true)
 
     global groupData = jldopen("groupData.jld2", "a+")
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")
     global userData = jldopen("userData.jld2", "a+")
+
+    @async diceReply(mode, message_channel)
+    # @async diceLogging(log_channel)
 
     try
         run_bot(mode, diceMain)

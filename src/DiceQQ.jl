@@ -6,18 +6,7 @@ function run_bot(::QQMode, foo::Function)
     WebSockets.open(onebot_ws_server) do ws
         for str ∈ ws
             msg = JSON3.read(str)
-            try
-                foo(QQMessage(msg))
-            catch err
-                @error err
-                showerror(stdout, err)
-                println()
-                display(stacktrace(catch_backtrace()))
-                println()
-                if err isa InterruptException
-                    break
-                end
-            end
+            foo(QQMessage(msg))
         end
     end
 end
@@ -74,11 +63,11 @@ function parseMsg(wrapped::QQMessage)
 
     time = unix2datetime(msg.time) + local_time_shift
     groupId = "private"
-    userId = msg.user_id
+    userId = msg.user_id |> string
     type = msg.message_type
     if type == "group"
         msg.sub_type != "normal" && return nothing
-        groupId = msg.group_id
+        groupId = msg.group_id |> string
     elseif type == "private"
         msg.sub_type != "friend" && return nothing
     else

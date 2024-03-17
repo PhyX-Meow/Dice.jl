@@ -2,6 +2,7 @@ module Dice
 
 export run_dice, TGMode, QQMode
 
+using HTTP
 using JLD2
 using JSON3
 using Dates
@@ -82,7 +83,6 @@ function diceMain(rough_msg::AbstractMessage)
                     @reply(err.text)
                 else
                     if debug_flag
-                        @error err
                         showerror(stdout, err)
                         println()
                         display(stacktrace(catch_backtrace()))
@@ -117,6 +117,13 @@ function run_dice(mode; debug = false)
 
     try
         run_bot(mode, diceMain)
+    catch err
+        showerror(stdout, err)
+        println()
+        if debug_flag
+            display(stacktrace(catch_backtrace()))
+            println()
+        end
     finally
         Base.close(groupData)
         Base.close(jrrpCache)

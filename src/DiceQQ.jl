@@ -17,12 +17,12 @@ function onebotPostJSON(action, params)
 end
 
 function onebotPostJSON(action)
-    HTTP.post(onebot_http_server * "/" * action)
+    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = "{}")
 end
 
 function getSelf()
     resp = onebotPostJSON("get_login_info")
-    info = JSON3.read(resp.body)
+    info = JSON3.read(resp.body).data
     selfId = string(info.user_id)
     selfName = info.nickname
     return (selfId, selfName)

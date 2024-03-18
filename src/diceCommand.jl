@@ -448,16 +448,16 @@ function logSet(msg, args)
         active_log[groupId] = log_ref = Ref{GameLog}()
         if haskey(group, "logs/$name")
             log_ref[] = group[logs][name]
-            @reply("(搬小板凳)继续记录 $name 的故事~")
+            @reply("(搬小板凳)继续记录 $name 的故事~", false, false)
         end
         log_ref[] = GameLog(name, groupId, now(), MessageLog[])
-        @reply("(搬小板凳)开始记录 $name 的故事~")
+        @reply("(搬小板凳)开始记录 $name 的故事~", false, false)
 
         @case "off"
         !haskey(active_log, groupId) && @reply("你要关什么？悟理球现在两手空空")
         log_ref = pop!(active_log, groupId)
         group["logs/$name"] = log_ref[]
-        @reply("$name 的故事结束了，悟理球已经全都记下来了！")
+        @reply("$name 的故事结束了，悟理球已经全都记下来了！", false, false)
 
         @case _
     end
@@ -470,7 +470,7 @@ function logRemove(msg, args)
     group = groupData[groupId]
     (isempty(name) || !haskey(group, "logs/$name")) && @reply("找不到这个日志耶，确定不是日志名写错了吗？")
     delete!(group[logs], name)
-    @reply("$name 的故事已经在记忆里消散了")
+    @reply("$name 的故事已经在记忆里消散了", false, false)
 end
 
 function logList(msg, args)
@@ -486,11 +486,15 @@ function logList(msg, args)
             reply_str *= "\n$(name)"
         end
     end
-    @reply(reply_str)
+    @reply(reply_str, false, false)
 end
 
 function logGet(msg, args)
-    @reply("Working in Progress...")
+    name = replace(args[1], r"^\s*|\s*$" => "")
+    groupId = msg.groupId
+    (isempty(name) || !haskey(group, "logs/$name")) && @reply("找不到这个日志耶，确定不是日志名写错了吗？")
+    @async exportLog(groupData[groupId][name], "GameLogs/$groupId/$name.txt")
+    @reply("正在导出~请稍候~", false, false)
 end
 
 function diceHelp(msg, args)

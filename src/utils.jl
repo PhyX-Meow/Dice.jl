@@ -347,6 +347,9 @@ struct MessageLog
     content::String
 end
 MessageLog(msg::DiceMsg) = MessageLog(msg.message_id, msg.time, msg.groupId, msg.userId, msg.userName, msg.text)
+function Base.string(item::MessageLog)
+    item.userName * "($(userId)) " * Dates.format(item.date, dateformat"YYYY/mm/dd HH:MM:SS") * " [$(item.id)]\n" * item.content
+end
 
 struct GameLog
     name::String
@@ -356,12 +359,20 @@ struct GameLog
 end
 
 function diceLogging(C::Channel)
-    for logItem in C
+    for log_item in C
         if haskey(active_log, groupId)
-            push!(active_log[groupId][].logs, logItem)
+            push!(active_log[groupId][].logs, log_item)
         end
     end
 end
 
-function exportLog(groupId::String, name::String)
+function exportLog(theLog::GameLog, path::AbstractString)
+    file = open(path, "w")
+    title = "日志记录：$(theLog.name)(000)" * Dates.format(theLog.date, dateformat"YYYY/mm/dd HH:MM:SS") * "\n\n\n"
+    write(file, title)
+    for log_item ∈ theLog.items
+        write(file, string(log_item), "\n\n")
+    end
+    close(file)
+    sendGroupFile(path = path, chat_id = parse(Int, theLog.groupID), name = "日志：$(theLog.name)")
 end

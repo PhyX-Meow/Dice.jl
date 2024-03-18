@@ -21,8 +21,8 @@ function parseMsg(wrapped::TGMessage)
     groupId = msg.message.chat.id |> string
     userId = msg.message.from.id |> string
     userName = msg.message.from.first_name
-    haskey(msg.message.from.last_name) && userName *= " " * msg.message.from.first_name
-    userName *= " (@$(msg.message.from.username))"
+    haskey(msg.message.from.last_name) && (userName *= " " * msg.message.from.first_name)
+    userName *= "(@$(msg.message.from.username))"
     msg.message.chat.type ∉ ["group", "supergroup", "private"] && return nothing
     type = "group"
     if msg.message.chat.type == "private"

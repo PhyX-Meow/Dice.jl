@@ -57,6 +57,19 @@ function leaveGroup(::QQMode; chat_id)
     onebotPostJSON("set_group_leave", msg_json)
 end
 
+function sendGroupFile(::QQMode; path, chat_id, name = "")
+    isempty(name) && (name = splitpath(path)[end])
+    full_path = joinpath(pwd(), path)
+    msg_json = """
+    {
+        "group_id": $chat_id,
+        "file": "$full_path",
+        "name": "$name"
+    }
+    """
+    onebotPostJSON("upload_group_file", msg_json)
+end
+
 function isQQFriend(user_id::Int64)
     return true
 

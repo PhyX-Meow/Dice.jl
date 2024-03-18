@@ -25,6 +25,11 @@ function leaveGroup(; chat_id)
     leaveGroup(mode; chat_id = chat_id)
 end
 
+function sendGroupFile(; path, chat_id, name)
+    mode = running_mode
+    sendGroupFile(mode; path = path, chat_id = chat_id, name = name)
+end
+
 function diceMain(rough_msg::AbstractMessage)
 
     if debug_flag

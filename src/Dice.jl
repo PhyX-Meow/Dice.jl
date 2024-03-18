@@ -71,7 +71,11 @@ function diceMain(rough_msg::AbstractMessage)
                 end
                 @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
             end
-            @reply("执行结果：$ret", false, false)
+            ret_msg = sprint(show, MIME"text/plain"(), ret)
+            if '\n' ∈ ret_msg
+                ret_msg = "\n" * ret_msg
+            end
+            @reply("执行结果：$ret_msg", false, false)
         end
     end
 

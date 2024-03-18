@@ -375,7 +375,7 @@ function exportLog(theLog::GameLog)
             write(file, string(log_item), "\n\n")
         end
         close(stream)
-        sendGroupFile(path = file, chat_id = parse(Int, theLog.groupId), name = "日志-$(theLog.name)")
+        sendGroupFile(path = file, chat_id = parse(Int, theLog.groupId), name = "日志-$(theLog.name).txt")
     catch err
         showerror(stdout, err)
         println()

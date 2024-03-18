@@ -3,6 +3,7 @@ using HTTP
 function run_bot(::QQMode, foo::Function)
     global onebot_ws_server = get(ENV, "CQ_WS_SERVER", "")
     global onebot_http_server = get(ENV, "CQ_HTTP_SERVER", "")
+    global selfQQ, selfQQName = getSelf()
     WebSockets.open(onebot_ws_server) do ws
         for str ∈ ws
             msg = JSON3.read(str)
@@ -13,6 +14,18 @@ end
 
 function onebotPostJSON(action, params)
     HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = params)
+end
+
+function onebotPostJSON(action)
+    HTTP.post(onebot_http_server * "/" * action)
+end
+
+function getSelf()
+    resp = onebotPostJSON("get_login_info")
+    info = JSON3.read(resp.body)
+    selfId = string(info.user_id)
+    selfName = info.nickname
+    return (selfId, selfName)
 end
 
 function sendGroupMessage(::QQMode; text, chat_id)
@@ -47,7 +60,7 @@ end
 function isQQFriend(user_id::Int64)
     return true
 
-    reply = onebotPostJSON("get_friend_list", "")
+    reply = onebotPostJSON("get_friend_list")
     list = JSON3.read(reply.body)
     qq_list = map(x -> x.user_id, list)
     return user_id ∈ qq_list
@@ -79,8 +92,7 @@ function parseMsg(wrapped::QQMessage)
     text = replace(msg.raw_message, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
     m = match(r"^\[CQ:at,qq=(\d*)\]\s*([\S\s]*)", text)
     if m !== nothing
-        qq = m.captures[1]
-        hash(qq) != selfQQ && return nothing
+        m.captures[1] != selfQQ && return nothing
         text = m.captures[2]
     end
     isempty(text) && return nothing
@@ -134,6 +146,18 @@ function diceReply(::QQMode, C::Channel)
 
         if debug_flag
             println(resp)
+        end
+
+        if msg.type == "group"
+            reply_id = JSON3.read(resp.body).data.message_id
+            put!(log_channel, MessageLog(
+                reply_id,
+                now(),
+                msg.groupID,
+                msg.userId,
+                msg.userName,
+                reply.text,
+            ))
         end
     end
 end

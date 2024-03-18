@@ -20,7 +20,9 @@ function parseMsg(wrapped::TGMessage)
     time = unix2datetime(msg.message.date) + local_time_shift
     groupId = msg.message.chat.id |> string
     userId = msg.message.from.id |> string
-    userName = msg.message.from.first_name * " " * msg.message.from.first_name * "(@$(msg.message.from.username))"
+    userName = msg.message.from.first_name
+    haskey(msg.message.from.last_name) && userName *= " " * msg.message.from.first_name
+    userName *= " (@$(msg.message.from.username))"
     msg.message.chat.type ∉ ["group", "supergroup", "private"] && return nothing
     type = "group"
     if msg.message.chat.type == "private"
@@ -69,6 +71,17 @@ function diceReply(::TGMode, C::Channel)
 
         if debug_flag
             println(resp)
+        end
+
+        if msg.type == "group"
+            put!(log_channel, MessageLog(
+                resp.message_id,
+                unix2datetime(resp.date) + local_time_shift,
+                chat_id,
+                string(resp.from.id),
+                resp.from.first_name,
+                reply.text,
+            ))
         end
     end
 end

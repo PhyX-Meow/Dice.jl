@@ -161,16 +161,25 @@ function diceReply(::QQMode, C::Channel)
             println(resp)
         end
 
-        if msg.type == "group"
-            reply_id = JSON3.read(resp.body).data.message_id
-            put!(log_channel, MessageLog(
-                reply_id,
-                now(),
-                msg.groupID,
-                msg.userId,
-                msg.userName,
-                reply.text,
-            ))
+        try
+            if msg.type == "group"
+                reply_id = JSON3.read(resp.body).data.message_id
+                put!(log_channel, MessageLog(
+                    reply_id,
+                    now(),
+                    msg.groupID,
+                    msg.userId,
+                    msg.userName,
+                    reply.text,
+                ))
+            end
+        catch err
+            showerror(stdout, err)
+            println()
+            if debug_flag
+                display(stacktrace(catch_backtrace()))
+                println()
+            end
         end
     end
 end

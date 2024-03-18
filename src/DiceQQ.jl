@@ -78,7 +78,7 @@ function isQQFriend(user_id::Int64)
     qq_list = map(x -> x.user_id, list)
     return user_id ∈ qq_list
 end
-isQQFriend(userID::String) = isQQFriend(parse(Int64, userID))
+isQQFriend(userId::String) = isQQFriend(parse(Int64, userId))
 
 function parseMsg(wrapped::QQMessage)
     msg = wrapped.body
@@ -161,25 +161,16 @@ function diceReply(::QQMode, C::Channel)
             println(resp)
         end
 
-        try
-            if msg.type == "group"
-                reply_id = JSON3.read(resp.body).data.message_id
-                put!(log_channel, MessageLog(
-                    reply_id,
-                    now(),
-                    msg.groupID,
-                    msg.userId,
-                    msg.userName,
-                    reply.text,
-                ))
-            end
-        catch err
-            showerror(stdout, err)
-            println()
-            if debug_flag
-                display(stacktrace(catch_backtrace()))
-                println()
-            end
+        if msg.type == "group"
+            reply_id = JSON3.read(resp.body).data.message_id
+            put!(log_channel, MessageLog(
+                reply_id,
+                now(),
+                msg.groupId,
+                msg.userId,
+                msg.userName,
+                reply.text,
+            ))
         end
     end
 end

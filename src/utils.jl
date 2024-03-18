@@ -367,14 +367,15 @@ function exportLog(theLog::GameLog)
     try
         path = "GameLogs/$(theLog.groupId)"
         mkpath(path)
-        file = open(path * "/$(theLog.name)", "w")
+        file = path * "/$(theLog.name).txt"
+        stream = open(file, "w")
         title = "日志记录：$(theLog.name)(000) " * Dates.format(theLog.time, dateformat"YYYY/mm/dd HH:MM:SS") * "\n—————————————————\n\n"
-        write(file, title)
+        write(stream, title)
         for log_item ∈ theLog.items
             write(file, string(log_item), "\n\n")
         end
         close(file)
-        sendGroupFile(path = path, chat_id = parse(Int, theLog.groupId), name = "日志：$(theLog.name)")
+        sendGroupFile(path = file, chat_id = parse(Int, theLog.groupId), name = "日志：$(theLog.name)")
     catch err
         showerror(stdout, err)
         println()

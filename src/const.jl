@@ -387,10 +387,11 @@ const helpText = """
     .r XdY  简单的骰骰子哒，在末尾添加#N可以骰N次哦
     .coc [数量] COC七版人物做成
     .dnd [数量] DND五版随机属性值
-    .jrrp 今日人品（据说数值越小越好）
     .pc [new/rm/nn/list] COC人物卡管理，新建/删除/重命名/列表
     .ti/li 疯狂发作-即时/总结症状抽取
     .gas 煤气灯特质抽取\
+    .log [new/on/off/rm/get] 日志记录，新建/追加/关闭/删除/导出
+    .jrrp 今日人品（据说数值越小越好）
     """
 const helpLinks = """
     纯美苹果园: http://www.goddessfantasy.net/bbs/index.php

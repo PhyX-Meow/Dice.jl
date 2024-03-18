@@ -437,37 +437,32 @@ function diceSetConfig(msg, args)
 end
 
 function logSwitch(msg, args)
-    try
-        op, str = args
-        name = replace(str, r"^\s*|\s*$" => "")
-        groupId = msg.groupId
-        group = groupData[groupId]
-        @switch op begin
-            @case "on"
-            isempty(name) && @reply("请提供一个日志名，不然悟理球不知道往哪里记啦")
-            haskey(active_log, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
-            active_log[groupId] = log_ref = Ref{GameLog}()
-            if haskey(group, "logs/$name")
-                log_ref[] = group[logs][name]
-                @reply("(搬小板凳)继续记录 $name 的故事~", false, false)
-            end
-            log_ref[] = GameLog(name, groupId, now(), MessageLog[])
-            @reply("(搬小板凳)开始记录 $name 的故事~", false, false)
-
-            @case "off"
-            !haskey(active_log, groupId) && @reply("你要关什么？悟理球现在两手空空")
-            log_ref = pop!(active_log, groupId)
-            name = log_ref[].name
-            group["logs/$name"] = log_ref[]
-            @reply("$name 的故事结束了，悟理球已经全都记下来了！", false, false)
-
-            @case _
+    op, str = args
+    name = replace(str, r"^\s*|\s*$" => "")
+    groupId = msg.groupId
+    group = groupData[groupId]
+    @switch op begin
+        @case "on"
+        isempty(name) && @reply("请提供一个日志名，不然悟理球不知道往哪里记啦")
+        haskey(active_log, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
+        active_log[groupId] = log_ref = Ref{GameLog}()
+        if haskey(group, "logs/$name")
+            log_ref[] = group[logs][name]
+            @reply("(搬小板凳)继续记录 $name 的故事~", false, false)
         end
-        nothing
-    catch err
-        showerror(err)
-        println()
+        log_ref[] = GameLog(name, groupId, now(), MessageLog[])
+        @reply("(搬小板凳)开始记录 $name 的故事~", false, false)
+
+        @case "off"
+        !haskey(active_log, groupId) && @reply("你要关什么？悟理球现在两手空空")
+        log_ref = pop!(active_log, groupId)
+        name = log_ref[].name
+        group["logs/$name"] = log_ref[]
+        @reply("$name 的故事结束了，悟理球已经全都记下来了！", false, false)
+
+        @case _
     end
+    nothing
 end
 
 function logRemove(msg, args)

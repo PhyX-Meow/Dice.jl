@@ -364,7 +364,7 @@ const cmdList = [
     DiceCmd(:randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
     DiceCmd(:randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
     DiceCmd(:randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
-    DiceCmd(:logSet, r"^log\s*(on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
+    DiceCmd(:logSwitch, r"^log\s*(on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
     DiceCmd(:logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", Set([:group])),
     DiceCmd(:logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
     DiceCmd(:logGet, r"^log (get|export)\s*(.*)", "导出群聊日志", Set([:group])),

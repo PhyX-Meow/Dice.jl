@@ -363,6 +363,7 @@ function diceLogging(C::Channel)
         if haskey(active_log, groupId)
             push!(active_log[groupId][].logs, log_item)
         end
+        continue
     end
 end
 

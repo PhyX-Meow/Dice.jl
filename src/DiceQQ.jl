@@ -126,7 +126,7 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::AbstractString 
 
         @case _
     end
-    text_escape = replace(text, r"\n" => "\\n")
+    text_escape = replace(text, r"\n" => "\\n", r"\"" => "\\\"")
     """
     {
         "message_type": "$type",

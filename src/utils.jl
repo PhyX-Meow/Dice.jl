@@ -192,9 +192,6 @@ function getConfig!(groupId, userId) # This allows modification
     return config
 end
 
-const getRngState, setRngState! = new_global_state(Random.default_rng())
-const getQuantumState = new_quantum_state()
-
 function getUserRng(userId)
     path = "$userId/ jrrpRng"
     if haskey(userData, path)
@@ -348,32 +345,42 @@ struct MessageLog
 end
 MessageLog(msg::DiceMsg) = MessageLog(msg.message_id, msg.time, msg.groupId, msg.userId, msg.userName, msg.text)
 function Base.string(item::MessageLog)
-    item.userName * "($(userId)) " * Dates.format(item.date, dateformat"YYYY/mm/dd HH:MM:SS") * " [$(item.id)]\n" * item.content
+    item.userName * "($(item.userId)) " * Dates.format(item.time, dateformat"YYYY/mm/dd HH:MM:SS") * " [$(item.id)]\n" * item.content
 end
 
 struct GameLog
     name::String
-    groupID::String
+    groupId::String
     time::DateTime
     items::Vector{MessageLog}
 end
 
 function diceLogging(C::Channel)
     for log_item in C
-        if haskey(active_log, groupId)
-            push!(active_log[groupId][].logs, log_item)
+        if haskey(active_logs, log_item.groupId)
+            push!(active_logs[log_item.groupId][].items, log_item)
         end
-        continue
     end
 end
 
-function exportLog(theLog::GameLog, path::AbstractString)
-    file = open(path, "w")
-    title = "日志记录：$(theLog.name)(000)" * Dates.format(theLog.date, dateformat"YYYY/mm/dd HH:MM:SS") * "\n\n\n"
-    write(file, title)
-    for log_item ∈ theLog.items
-        write(file, string(log_item), "\n\n")
+function exportLog(theLog::GameLog)
+    try
+        path = "GameLogs/$(theLog.groupId)"
+        mkpath(path)
+        file = open(path * "/$(theLog.name)", "w")
+        title = "日志记录：$(theLog.name)(000) " * Dates.format(theLog.time, dateformat"YYYY/mm/dd HH:MM:SS") * "\n—————————————————\n\n"
+        write(file, title)
+        for log_item ∈ theLog.items
+            write(file, string(log_item), "\n\n")
+        end
+        close(file)
+        sendGroupFile(path = path, chat_id = parse(Int, theLog.groupId), name = "日志：$(theLog.name)")
+    catch err
+        showerror(stdout, err)
+        println()
+        if debug_flag
+            display(stacktrace(catch_backtrace()))
+            println()
+        end
     end
-    close(file)
-    sendGroupFile(path = path, chat_id = parse(Int, theLog.groupID), name = "日志：$(theLog.name)")
 end

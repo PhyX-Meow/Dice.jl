@@ -444,20 +444,29 @@ function logSwitch(msg, args)
     @switch op begin
         @case "on"
         isempty(name) && @reply("请提供一个日志名，不然悟理球不知道往哪里记啦")
-        haskey(active_log, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
-        active_log[groupId] = log_ref = Ref{GameLog}()
+        haskey(active_logs, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
+        active_logs[groupId] = log_ref = Ref{GameLog}()
         if haskey(group, "logs/$name")
-            log_ref[] = group[logs][name]
-            @reply("(搬小板凳)继续记录 $name 的故事~", false, false)
+            log_ref[] = group["logs/$name"]
+            @reply("（搬小板凳）继续记录 $name 的故事~", false, false)
         end
         log_ref[] = GameLog(name, groupId, now(), MessageLog[])
-        @reply("(搬小板凳)开始记录 $name 的故事~", false, false)
+        @reply("（搬小板凳）开始记录 $name 的故事~", false, false)
+
+        @case "new"
+        isempty(name) && @reply("请提供一个日志名，不然悟理球不知道往哪里记啦")
+        haskey(active_logs, groupId) && @reply("悟理球已经在记录日志了，再多要忙不过来了qwq")
+        if haskey(group, "logs/$name")
+            @reply("已经存在同名日志了，悟理球舍不得擅自把它删掉，换个名字吧", false, false)
+        end
+        active_logs[groupId] = Ref{GameLog}(GameLog(name, groupId, now(), MessageLog[]))
+        @reply("（搬小板凳）开始记录 $name 的故事~", false, false)
 
         @case "off"
-        !haskey(active_log, groupId) && @reply("你要关什么？悟理球现在两手空空")
-        log_ref = pop!(active_log, groupId)
+        !haskey(active_logs, groupId) && @reply("你要关什么？悟理球现在两手空空")
+        log_ref = pop!(active_logs, groupId)
         name = log_ref[].name
-        group["logs/$name"] = log_ref[]
+        setJLD!(group, "logs/$name" => log_ref[])
         @reply("$name 的故事结束了，悟理球已经全都记下来了！", false, false)
 
         @case _
@@ -470,14 +479,14 @@ function logRemove(msg, args)
     groupId = msg.groupId
     group = groupData[groupId]
     (isempty(name) || !haskey(group, "logs/$name")) && @reply("找不到这个日志耶，确定不是日志名写错了吗？")
-    delete!(group[logs], name)
+    delete!(group["logs"], name)
     @reply("$name 的故事已经在记忆里消散了", false, false)
 end
 
 function logList(msg, args)
     groupId = msg.groupId
     group = groupData[groupId]
-    logging = haskey(active_log, groupId) ? active_log(groupId)[].name : ""
+    logging = haskey(active_logs, groupId) ? active_logs(groupId)[].name : ""
     reply_str = isempty(logging) ? "没有正在记录的日志~\n" : "正在记录：$logging\n"
     if !haskey(group, "logs") || isempty(group["logs"])
         reply_str *= "没有记录完成的日志~"
@@ -493,8 +502,9 @@ end
 function logGet(msg, args)
     name = replace(args[1], r"^\s*|\s*$" => "")
     groupId = msg.groupId
+    group = groupData[groupId]
     (isempty(name) || !haskey(group, "logs/$name")) && @reply("找不到这个日志耶，确定不是日志名写错了吗？")
-    @async exportLog(groupData[groupId][name], "GameLogs/$groupId/$name.txt")
+    @async exportLog(group["logs/$name"])
     @reply("正在导出~请稍候~", false, false)
 end
 
@@ -633,7 +643,7 @@ function invList(msg, args) # 支持按照编号删除
             list_str = "备选角色：\n" * list_temp
         end
     end
-    @reply(select_str * '\n' * "—————————————————\n" * list_str)
+    @reply(select_str * "\n—————————————————\n" * list_str)
 end
 
 function skillShow(msg, args)

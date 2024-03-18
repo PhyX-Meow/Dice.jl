@@ -13,6 +13,10 @@ function leaveGroup(::TGMode; chat_id)
     Telegram.API.leaveChat(chat_id = chat_id)
 end
 
+function sendGroupFile(::TGMode; path, chat_id, name = "")
+    Telegram.API.sendMessage(text = "上传文件的功能还没有做好，联系Master让他发给你吧qwq", chat_id = chat_id)
+end
+
 function parseMsg(wrapped::TGMessage)
     msg = wrapped.body
     !haskey(msg, :message) && return nothing

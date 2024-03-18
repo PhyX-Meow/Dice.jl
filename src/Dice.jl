@@ -117,7 +117,9 @@ running_mode = NotRunning()
 debug_flag = false
 const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
 const log_channel = Channel{MessageLog}(64)
-const active_log = Dict()
+const active_logs = Dict()
+const getQuantumState = new_quantum_state()
+const getRngState, setRngState! = new_global_state(Random.default_rng())
 # const rngState = Ref{AbstractRNG}(Random.default_rng())
 
 function run_dice(mode; debug = false)

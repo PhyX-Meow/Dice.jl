@@ -167,8 +167,8 @@ function diceReply(::QQMode, C::Channel)
                 reply_id,
                 now(),
                 msg.groupId,
-                msg.userId,
-                msg.userName,
+                selfQQ,
+                selfQQName,
                 reply.text,
             ))
         end

@@ -165,6 +165,9 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 
     if isempty(str)
         str = "1d$defaultDice"
     end
+    if 'd' ∉ str && str[1] ∈ "+-*/"
+        str = "1d$defaultDice" * str
+    end
     if match(r"d\d*d", str) !== nothing
         throw(DiceError("表达式有歧义，看看是不是有写出了XdYdZ样子的算式？"))
     end
@@ -401,19 +404,19 @@ function diceSetConfig(msg, args)
     @switch setting begin
         @case "dnd"
         setJLD!(groupConfig, "gameMode" => :dnd, "defaultDice" => 20)
-        @reply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！")
+        @reply("已切换到DND模式，愿你在奇幻大陆上展开一场瑰丽的冒险！", false, false)
 
         @case "coc"
         setJLD!(groupConfig, "gameMode" => :coc, "defaultDice" => 100)
-        @reply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。")
+        @reply("已切换到COC模式，愿你在宇宙的恐怖真相面前坚定意志。", false, false)
 
         @case "detailed"
         setJLD!(groupConfig, "detailedDice" => true)
-        @reply("详细骰点模式已开启")
+        @reply("详细骰点模式已开启", false, false)
 
         @case "simple"
         setJLD!(groupConfig, "detailedDice" => false)
-        @reply("详细骰点模式已关闭")
+        @reply("详细骰点模式已关闭", false, false)
 
         @case Re{r"rand=(default|jrrp|quantum)"}(capture)
         mode = Symbol(capture[1])
@@ -480,7 +483,7 @@ function logRemove(msg, args)
     group = groupData[groupId]
     (isempty(name) || !haskey(group, "logs/$name")) && @reply("找不到这个日志耶，确定不是日志名写错了吗？")
     delete!(group["logs"], name)
-    @reply("$name 的故事已经在记忆里消散了", false, false)
+    @reply("$name 的故事在记忆里消散了", false, false)
 end
 
 function logList(msg, args)

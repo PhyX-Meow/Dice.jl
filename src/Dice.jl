@@ -64,6 +64,7 @@ function diceMain(rough_msg::AbstractMessage)
             try
                 ret = "begin $superCommand end" |> Meta.parse |> eval
             catch err
+                err isa InterruptException && rethrow()
                 if err isa Base.Meta.ParseError
                     err_msg = err.msg
                 else
@@ -83,36 +84,37 @@ function diceMain(rough_msg::AbstractMessage)
     chatType = groupId == "private" ? :private : :group
     ignore = groupId == "private" ? false : getConfig(groupId, "everyone", "isOff")
     randomMode = getConfig("private", userId, "randomMode")
-    rng = @match randomMode begin
-        :jrrp => getUserRng(userId)
-        # :quantum => QuantumRNG()
-        _ => Random.default_rng()
-    end
+    try
+        rng = @match randomMode begin
+            :jrrp => getUserRng(userId)
+            # :quantum => QuantumRNG()
+            _ => Random.default_rng()
+        end
 
-    for cmd ∈ cmdList
-        if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
-            continue
-        end
-        m = match(cmd.reg, str)
-        if m !== nothing
-            foo = eval(cmd.func)
-            setRngState!(rng)
-            try
-                foo(msg, m.captures)
-            catch err
-                err isa DiceError && @reply(err.text)
-                if debug_flag
-                    showerror(stdout, err)
-                    println()
-                    display(stacktrace(catch_backtrace()))
-                    println()
-                end
-                @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
-            finally
-                randomMode == :jrrp && saveUserRng(userId)
+        for cmd ∈ cmdList
+            if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
+                continue
             end
-            break
+            m = match(cmd.reg, str)
+            if m !== nothing
+                foo = eval(cmd.func)
+                setRngState!(rng)
+                foo(msg, m.captures)
+                break
+            end
         end
+    catch err
+        err isa DiceError && @reply(err.text)
+        err isa InterruptException && rethrow()
+        showerror(stdout, err)
+        println()
+        if debug_flag
+            display(stacktrace(catch_backtrace()))
+            println()
+        end
+        @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
+    finally
+        randomMode == :jrrp && saveUserRng(userId)
     end
 end
 
@@ -140,6 +142,10 @@ function run_dice(mode; debug = false)
     try
         run_bot(mode, diceMain)
     catch err
+        if err isa InterruptException
+            println("正在关闭悟理球...")
+            return nothing
+        end
         showerror(stdout, err)
         println()
         if debug_flag

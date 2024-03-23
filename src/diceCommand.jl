@@ -695,7 +695,7 @@ function skillSet(msg, args) # Add .st rm
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
         end
-        text *= '\n' * skill * '\t'
+        text *= "\n" * skill * " "
         resultIR = rollDice(m.captures[3])[1]
         expr = resultIR.expr
         res = resultIR.total

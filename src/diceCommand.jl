@@ -2,17 +2,17 @@ macro dice_str(str)
     :(rollDice($str).total)
 end
 
-function skillCheck(success::Int, rule::Symbol, bonus::Int) # 什么时候能骰多个呢
+function skillCheck(success::Int, rule::Symbol, bonus::Int)
     if success > 512
         throw(DiceError("错误，成功率不合基本法"))
     end
 
-    fate = rand(getRngState(), 1:100)
+    fate = rand(rng_state[], 1:100)
     res = "1d100 = $(fate)"
 
     if bonus != 0
         r = fate % 10
-        bDice = rand(getRngState(), 0:9, abs(bonus))
+        bDice = rand(rng_state[], 0:9, abs(bonus))
         bFate = @. bDice * 10 + r
         replace!(bFate, 0 => 100)
         if bonus > 0
@@ -183,6 +183,13 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 
         _expr_ = expr_replace(expr, x -> x isa Int, x -> :(DiceIR($x)); skip = x -> (x.head == :call && x.args[1] == :↑))
         return [eval(_expr_) for _ ∈ 1:times]
     catch err
+        err isa DiceError && rethrow()
+        showerror(stdout, err)
+        println()
+        if debug_flag
+            display(stacktrace(catch_backtrace()))
+            println()
+        end
         throw(DiceError("表达式格式错误，算不出来惹"))
     end
 end
@@ -190,7 +197,7 @@ end
 function sanCheck(msg, args) # To do: 恐惧症/躁狂症
     userId = msg.userId
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
 
     str = args[1]
@@ -274,12 +281,12 @@ function skillEn(msg, args)
     else
         throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
     end
-    fate = rand(getRngState(), 1:100)
+    fate = rand(rng_state[], 1:100)
     if fate <= success
         @reply("1d100 = $(fate)/$(success)\n失败了，什么事情都没有发生.jpg")
     end
 
-    up = rand(getRngState(), 1:10)
+    up = rand(rng_state[], 1:10)
     setJLD!(inv, skill => success + up, "SaveTime" => now())
 
     @reply(
@@ -453,7 +460,7 @@ function logSwitch(msg, args)
             log_ref[] = group["logs/$name"]
             @reply("（搬小板凳）继续记录 $name 的故事~", false, false)
         end
-        log_ref[] = GameLog(name, groupId, now(), MessageLog[])
+        log_ref[] = GameLog(name, groupId, now(), MessageLog[], Int[])
         @reply("（搬小板凳）开始记录 $name 的故事~", false, false)
 
         @case "new"
@@ -462,7 +469,7 @@ function logSwitch(msg, args)
         if haskey(group, "logs/$name")
             @reply("已经存在同名日志了，悟理球舍不得擅自把它删掉，换个名字吧", false, false)
         end
-        active_logs[groupId] = Ref{GameLog}(GameLog(name, groupId, now(), MessageLog[]))
+        active_logs[groupId] = Ref{GameLog}(GameLog(name, groupId, now(), MessageLog[], Int[]))
         @reply("（搬小板凳）开始记录 $name 的故事~", false, false)
 
         @case "off"
@@ -752,17 +759,10 @@ function randomGas(msg, args)
     @reply(gasList[fate])
 end
 
-function getJrrpSeed()
-    date = today() |> string
-    haskey(jrrpCache, date) && return jrrpCache[date]
-    jrrpCache[date] = seed = getQuantum(1, 4)[1]
-    return seed
-end
-
 function jrrp(msg, args)
     userId = msg.userId
     seed = getJrrpSeed()
-    rng = MersenneTwister(parse(UInt64, userId) ⊻ seed ⊻ 0x196883)
+    rng = MersenneTwister(parse(UInt64, userId) ⊻ seed ⊻ 0x30113)
     rp = rand(rng, 1:100)
     @reply("今天你的手上粘了 $rp 个悟理球！")
 end
@@ -770,3 +770,34 @@ end
 function fuck2060(msg, args)
     @reply("玩你🐎透明字符呢，滚！", false, true)
 end
+
+const cmdList = [
+    DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", Set([:group, :private])),
+    DiceCmd(charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
+    DiceCmd(charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
+    DiceCmd(botStart, r"^start$", "Hello, world!", Set([:private])),
+    DiceCmd(botSwitch, r"^bot\s*(on|off|exit)", "bot开关", Set([:group, :off])),
+    DiceCmd(botInfo, r"^bot$", "bot信息", Set([:group, :private])),
+    DiceCmd(diceSetConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
+    DiceCmd(diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
+    DiceCmd(invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
+    DiceCmd(invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),
+    DiceCmd(invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
+    DiceCmd(invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
+    DiceCmd(invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
+    DiceCmd(invList, r"^pc\s*(?:list)?$", "当前人物卡列表", Set([:group, :private])),
+    DiceCmd(invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
+    DiceCmd(skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
+    DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
+    DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
+    DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
+    DiceCmd(randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
+    DiceCmd(randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
+    DiceCmd(logSwitch, r"^log\s*(new|on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
+    DiceCmd(logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", Set([:group])),
+    DiceCmd(logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
+    DiceCmd(logGet, r"^log (?:get|export)\s*(.*)", "导出群聊日志", Set([:group])),
+    DiceCmd(jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
+    DiceCmd(fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
+]

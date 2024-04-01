@@ -1,6 +1,6 @@
 struct DiceMsg
     time::DateTime
-    type::String
+    type::Symbol
     groupId::String
     userId::String
     userName::String
@@ -13,7 +13,7 @@ struct DiceError <: Exception
 end
 
 struct DiceCmd
-    func::Symbol
+    func::Function
     reg::Regex
     desp::String
     options::Set{Symbol}
@@ -84,7 +84,7 @@ function expr_replace(ex, cond::Function, func::Function; skip::Function = _ -> 
     end
 
     foo(deepcopy(ex))
-end
+end # Rewrite to in place version?
 
 function expr_replace(ex, rules::Pair...; skip::Function = _ -> false)
     for (key, val) in rules
@@ -106,54 +106,73 @@ function setJLD!(dataSet, settings::Pair...)
     end
 end
 
-function new_global_state(default_val)
-    state = default_val
-    function get()
-        return state
-    end
-    function set!(new_state)
-        state = new_state
-    end
-    function set!()
-        state = default_val
-    end
-    return (get, set!)
+# function new_global_state(default_val)
+#     state = default_val
+#     function get()
+#         return state
+#     end
+#     function set!(new_state)
+#         state = new_state
+#     end
+#     function set!()
+#         state = default_val
+#     end
+#     return (get, set!)
+# end
+
+# function new_global_vector(T::DataType)
+#     state = T[]
+#     function get()
+#         return state
+#     end
+# end
+
+struct QuantumRNG end # This is not a real Rng!
+Base.rand(::QuantumRNG, args...) = rand(getQuantumRNG(), args...)
+
+function getQuantumRNG()
+    getJrrpSeed()
+    return MersenneTwister(getQuantumSeed() ⊻ hash(now()))
 end
 
-function new_global_vector(T::DataType)
-    state = T[]
-    function get()
-        return state
-    end
-end
-new_quantum_state() = new_global_vector(UInt64)
-
-function getQuantumRng()
-    quantumState = getQuantumState()
-    if isempty(quantumState)
-        append!(quantumState, getQuantum(1024, 4))
-    end
-    seed = pop!(quantumState)
-    return MersenneTwister(seed)
+function getJrrpSeed()
+    date = today() |> string
+    haskey(jrrpCache, date) && return jrrpCache[date]
+    empty!(quantum_state[])
+    jrrpCache[date] = seed = getQuantumSeed()
+    return seed
 end
 
-function getQuantum(length = 1, size = 4)
-    api_key = get(ENV, "SUPER_SECRET_QUANTUM_API_KEY", "")
-    headers = Dict("x-api-key" => api_key)
-    resp = try
-        HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=4", headers, readtimeout = 1)
-    catch err
-        if err isa HTTP.Exceptions.TimeoutError
-            throw(DiceError("量子超时:("))
-        else
-            throw(err)
+function getQuantumSeed()
+    if isempty(quantum_state[])
+        api_key = get(ENV, "FREE_QUANTUM_API_KEY", "")
+        headers = Dict("x-api-key" => api_key)
+        length = 16
+        resp = try
+            HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=10", headers, readtimeout = 1)
+        catch err
+            if err isa HTTP.Exceptions.TimeoutError
+                throw(DiceError("量子超时:("))
+            else
+                throw(DiceError("发生量子错误！"))
+            end
+        end
+        dataJSON = resp.body |> String |> JSON3.read
+        if !dataJSON.success
+            throw(DiceError("发生量子错误！"))
+        end
+
+        data = dataJSON.data
+        for i ∈ 1:2:length
+            a = SubString(data[i], 1, 16)
+            b = SubString(data[i], 17, 32)
+            c = SubString(data[i], 33, 40) * SubString(data[i+1], 1, 8)
+            d = SubString(data[i+1], 9, 24)
+            e = SubString(data[i+1], 25, 40)
+            append!(quantum_state[], parse.(UInt64, [a, b, c, d, e], base = 16))
         end
     end
-    dataJSON = resp.body |> String |> JSON3.read
-    if !dataJSON.success
-        throw(DiceError("发生量子错误！"))
-    end
-    return parse.(UInt64, dataJSON.data, base = 16)
+    return pop!(quantum_state[])
 end
 
 function getConfig(groupId, userId) # This is read only
@@ -192,7 +211,7 @@ function getConfig!(groupId, userId) # This allows modification
     return config
 end
 
-function getUserRng(userId)
+function getUserRNG(userId)
     path = "$userId/ jrrpRng"
     if haskey(userData, path)
         if userData[path][1] == today()
@@ -205,16 +224,16 @@ function getUserRng(userId)
     return rng
 end
 
-function saveUserRng(userId)
+function saveUserRNG(userId)
     if getConfig("private", userId, "randomMode") == :jrrp
-        setJLD!(userData, "$userId/ jrrpRng", (today(), deepcopy(getRngState())))
+        setJLD!(userData, "$userId/ jrrpRng", (today(), deepcopy(rng_state[])))
     end
-    setRngState!()
+    rng_state[] = Random.default_rng()
 end
 
-function xdy(num::Integer, face::Integer; take::Integer = 0, rng = getRngState())
+function xdy(num::Integer, face::Integer; take::Integer = 0)
     check_dice(num, face)
-    roll = rand(rng, 1:face, num)
+    roll = rand(rng_state[], 1:face, num)
     @match take begin
         GuardBy(>(0)) => sum(sort(roll, rev = true)[1:min(take, num)])
         GuardBy(<(0)) => sum(sort(roll)[1:min(-take, num)])
@@ -243,7 +262,7 @@ function check_dice(num, face)
     face > 153 && throw(DiceError("你这骰子已经是个球球了，没法骰了啦！"))
 end
 
-function DiceIR(rng::AbstractRNG, num::Integer, face::Integer; lead::Bool = false)
+function DiceIR(rng, num::Integer, face::Integer; lead::Bool = false)
     check_dice(num, face)
     expr = "$(num)d$(face)"
     result = if lead
@@ -313,7 +332,7 @@ begin
 
     ÷(x::Number, y::Number) = ÷(promote(x, y)...)
 
-    function ↑(rng::AbstractRNG, L::DiceIR, R::DiceIR)
+    function ↑(rng, L::DiceIR, R::DiceIR)
         current_precedence = dice_op_precedence[:↑]
 
         expr = ""
@@ -328,14 +347,15 @@ begin
 
         return DiceIR(expr, result, total, current_precedence)
     end
-    ↑(rng::AbstractRNG, L::Integer, R::Integer) = DiceIR(rng, L, R)
-    ↑(rng::AbstractRNG, L::Number, R::DiceIR) = ↑(rng, promote(L, R)...)
-    ↑(rng::AbstractRNG, L::DiceIR, R::Number) = ↑(rng, promote(L, R)...)
-    ↑(L, R) = ↑(getRngState(), L, R)
+    ↑(rng, L::Integer, R::Integer) = DiceIR(rng, L, R)
+    ↑(rng, L::Number, R::DiceIR) = ↑(rng, promote(L, R)...)
+    ↑(rng, L::DiceIR, R::Number) = ↑(rng, promote(L, R)...)
+    ↑(L, R) = ↑(rng_state[], L, R)
     ↓(L, R) = L * R
 end
 
 struct MessageLog
+    type::Symbol
     id::Int64
     time::DateTime
     groupId::String
@@ -343,7 +363,7 @@ struct MessageLog
     userName::String
     content::String
 end
-MessageLog(msg::DiceMsg) = MessageLog(msg.message_id, msg.time, msg.groupId, msg.userId, msg.userName, msg.text)
+MessageLog(msg::DiceMsg) = MessageLog(:msg, msg.message_id, msg.time, msg.groupId, msg.userId, msg.userName, msg.text)
 function Base.string(item::MessageLog)
     item.userName * "($(item.userId)) " * Dates.format(item.time, dateformat"YYYY/mm/dd HH:MM:SS") * " [$(item.id)]\n" * item.content
 end
@@ -353,26 +373,37 @@ struct GameLog
     groupId::String
     time::DateTime
     items::Vector{MessageLog}
+    deleted_items::Vector{Int64}
 end
 
 function diceLogging(C::Channel)
     for log_item in C
-        if haskey(active_logs, log_item.groupId)
-            push!(active_logs[log_item.groupId][].items, log_item)
+        !haskey(active_logs, log_item.groupId) && continue
+        the_log = active_logs[log_item.groupId][]
+        @switch log_item.type begin
+            @case :msg
+            push!(the_log.items, log_item)
+
+            @case :recall
+            push!(the_log.deleted_items, log_item.id)
+
+            @case _
         end
     end
 end
 
-function exportLog(theLog::GameLog)
-    path = "GameLogs/$(theLog.groupId)"
+function exportLog(the_log::GameLog)
+    path = "GameLogs/$(the_log.groupId)"
     mkpath(path)
-    file = path * "/$(theLog.name).txt"
+    file = path * "/$(the_log.name).txt"
     stream = open(file, "w")
-    title = "日志记录：$(theLog.name)(000) " * Dates.format(theLog.time, dateformat"YYYY/mm/dd HH:MM:SS") * "\n—————————————————\n\n"
+    title = "日志记录：$(the_log.name)(000) " * Dates.format(the_log.time, dateformat"YYYY/mm/dd HH:MM:SS") * "\n—————————————————\n\n"
+    deleted = Set(the_log.deleted_items)
     write(stream, title)
-    for log_item ∈ theLog.items
+    for log_item ∈ the_log.items
+        log_item.id ∈ deleted && continue
         write(stream, string(log_item), "\n\n")
     end
     close(stream)
-    sendGroupFile(path = file, chat_id = parse(Int, theLog.groupId), name = "日志-$(theLog.name).txt")
+    sendGroupFile(path = file, chat_id = parse(Int, the_log.groupId), name = "日志-$(the_log.name).txt")
 end

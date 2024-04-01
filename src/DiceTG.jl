@@ -28,9 +28,10 @@ function parseMsg(wrapped::TGMessage)
     haskey(msg.message.from, :last_name) && (userName *= " " * msg.message.from.last_name)
     userName *= "(@$(msg.message.from.username))"
     msg.message.chat.type ∉ ["group", "supergroup", "private"] && return nothing
-    type = "group"
+    type = :group
     if msg.message.chat.type == "private"
-        groupId = type = "private"
+        type = :private
+        groupId = "private"
     end
     text = msg.message.text
     isempty(text) && return nothing
@@ -47,7 +48,7 @@ function diceReply(::TGMode, C::Channel)
 
         isempty(reply.text) && return nothing
         user_id = parse(Int64, msg.userId)
-        chat_id = parse(Int64, msg.type == "group" ? msg.groupId : msg.userId)
+        chat_id = parse(Int64, msg.type == :group ? msg.groupId : msg.userId)
         resp = if length(reply.text) > 1024
             Telegram.API.sendMessage(
                 text = "结果太长了，悟理球不想刷屏，所以就不发啦！",
@@ -77,8 +78,9 @@ function diceReply(::TGMode, C::Channel)
             println(resp)
         end
 
-        if msg.type == "group"
+        if msg.type == :group
             put!(log_channel, MessageLog(
+                :msg,
                 resp.message_id,
                 unix2datetime(resp.date) + local_time_shift,
                 string(chat_id),

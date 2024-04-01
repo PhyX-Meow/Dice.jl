@@ -91,12 +91,12 @@ function parseMsg(wrapped::QQMessage)
     groupId = "private"
     userId = msg.user_id |> string
     userName = msg.sender.nickname
-    type = msg.message_type
-    if type == "group"
+    type = Symbol(msg.message_type)
+    if type == :group
         msg.sub_type != "normal" && return nothing
         groupId = msg.group_id |> string
         !isempty(msg.sender.card) && (userName = msg.sender.card)
-    elseif type == "private"
+    elseif type == :private
         msg.sub_type != "friend" && return nothing
     else
         return nothing
@@ -112,21 +112,21 @@ function parseMsg(wrapped::QQMessage)
     return DiceMsg(time, type, groupId, userId, userName, msg.message_id, text)
 end
 
-function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::AbstractString = msg.type, ref::Bool = false)
+function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.type, ref::Bool = false)
     @switch type begin
-        @case "group"
+        @case :group
         target = "group"
         target_id = msg.groupId
         CQref = ref ? "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]" : ""
 
-        @case "private"
+        @case :private
         target = "user"
         target_id = msg.userId
         CQref = ref ? "[CQ:reply,id=$(msg.message_id)]" : ""
 
         @case _
     end
-    text_escape = replace(text, r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t")
+    text_escape = replace(text, r"\r" => "\\r", r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t")
     """
     {
         "message_type": "$type",
@@ -145,31 +145,37 @@ function diceReply(::QQMode, C::Channel)
         end
 
         isempty(reply.text) && return nothing
-        resp = if length(reply.text) > 1024
-            onebotPostJSON("send_msg", makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！"))
+        reply_json = if length(reply.text) > 1024
+            makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！")
         elseif reply.hidden
             if isQQFriend(msg.userId)
-                onebotPostJSON("send_msg", makeReplyJSON(msg, text = reply.text, type = "private"))
+                makeReplyJSON(msg, text = reply.text, type = :private)
             else
-                onebotPostJSON("send_msg", makeReplyJSON(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true))
+                makeReplyJSON(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true)
             end
         else
-            onebotPostJSON("send_msg", makeReplyJSON(msg, text = reply.text, ref = reply.ref))
+            makeReplyJSON(msg, text = reply.text, ref = reply.ref)
         end
+        resp = onebotPostJSON("send_msg", reply_json)
 
         if debug_flag
             println(resp)
         end
 
-        if msg.type == "group"
+        if msg.type == :group
             reply_id = JSON3.read(resp.body).data.message_id
+            text = reply.text
+            if reply.ref
+                text = text * "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]"
+            end
             put!(log_channel, MessageLog(
+                :msg,
                 reply_id,
                 now(),
                 msg.groupId,
                 selfQQ,
                 selfQQName,
-                reply.text,
+                text,
             ))
         end
     end
@@ -208,6 +214,17 @@ function handleNotice(msg)
 
         @case "friend_add"
         sendPrivateMessage(QQMode(); text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = msg.user_id)
+
+        @case "group_recall"
+        put!(log_channel, MessageLog(
+            :recall,
+            msg.message_id,
+            unix2datetime(msg.time) + local_time_shift,
+            string(msg.group_id),
+            string(msg.user_id),
+            "绯红之王",
+            "",
+        ))
 
         @case _
     end

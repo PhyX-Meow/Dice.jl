@@ -1,4 +1,4 @@
-const diceVersion = v"0.6.1"
+const diceVersion = v"0.6.2"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
 const local_time_shift = Hour(8)
@@ -7,14 +7,14 @@ const defaultUserConfig = Dict(
     "randomMode" => :default,
     "defaultDice" => 100,
     "gameMode" => :coc,
-    "detailedDice" => false,
+    "detailedDice" => true,
 )
 
 const defaultGroupConfig = Dict(
     "isOff" => false,
     "defaultDice" => 100,
     "gameMode" => :coc,
-    "detailedDice" => false,
+    "detailedDice" => true,
 )
 
 const checkReplySimple = Dict(
@@ -340,37 +340,6 @@ const gasList = Dict(
     (6, 19) => "任意选择一项特征。",
     (6, 20) => "投掷两次，玩家任意选择其中一项特征。",
 )
-
-const cmdList = [
-    DiceCmd(:roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", Set([:group, :private])),
-    DiceCmd(:charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
-    DiceCmd(:charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
-    DiceCmd(:botStart, r"^start$", "Hello, world!", Set([:private])),
-    DiceCmd(:botSwitch, r"^bot\s*(on|off|exit)", "bot开关", Set([:group, :off])),
-    DiceCmd(:botInfo, r"^bot$", "bot信息", Set([:group, :private])),
-    DiceCmd(:diceSetConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
-    DiceCmd(:diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
-    DiceCmd(:invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
-    DiceCmd(:invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),
-    DiceCmd(:invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
-    DiceCmd(:invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
-    DiceCmd(:invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
-    DiceCmd(:invList, r"^pc\s*(?:list)?$", "当前人物卡列表", Set([:group, :private])),
-    DiceCmd(:invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
-    DiceCmd(:skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
-    DiceCmd(:skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
-    DiceCmd(:sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
-    DiceCmd(:skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
-    DiceCmd(:randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
-    DiceCmd(:randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
-    DiceCmd(:randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
-    DiceCmd(:logSwitch, r"^log\s*(new|on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
-    DiceCmd(:logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", Set([:group])),
-    DiceCmd(:logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
-    DiceCmd(:logGet, r"^log (?:get|export)\s*(.*)", "导出群聊日志", Set([:group])),
-    DiceCmd(:jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
-    DiceCmd(:fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
-]
 
 const helpText = """
     Dice Julian, made by 悟理(@phyxmeow).

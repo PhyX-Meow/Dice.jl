@@ -43,7 +43,7 @@ function diceMain(rough_msg::AbstractMessage)
     userId = msg.userId
     str = msg.text
 
-    if msg.type == "group"
+    if msg.type == :group
         put!(log_channel, MessageLog(msg))
     end
 
@@ -81,40 +81,37 @@ function diceMain(rough_msg::AbstractMessage)
     end
 
     # Dice command
-    chatType = groupId == "private" ? :private : :group
     ignore = groupId == "private" ? false : getConfig(groupId, "everyone", "isOff")
     randomMode = getConfig("private", userId, "randomMode")
-    try
-        rng = @match randomMode begin
-            :jrrp => getUserRng(userId)
-            # :quantum => QuantumRNG()
-            _ => Random.default_rng()
-        end
 
-        for cmd ∈ cmdList
-            if (ignore && :off ∉ cmd.options) || chatType ∉ cmd.options
-                continue
-            end
-            m = match(cmd.reg, str)
-            if m !== nothing
-                foo = eval(cmd.func)
-                setRngState!(rng)
-                foo(msg, m.captures)
-                break
-            end
+    for cmd ∈ cmdList
+        if (ignore && :off ∉ cmd.options) || msg.type ∉ cmd.options
+            continue
         end
-    catch err
-        err isa DiceError && @reply(err.text)
-        err isa InterruptException && rethrow()
-        showerror(stdout, err)
-        println()
-        if debug_flag
-            display(stacktrace(catch_backtrace()))
-            println()
+        m = match(cmd.reg, str)
+        if m !== nothing
+            try
+                rng_state[] = @match randomMode begin
+                    :jrrp => getUserRNG(userId)
+                    :quantum => QuantumRNG()
+                    _ => Random.default_rng()
+                end
+                cmd.func(msg, m.captures)
+            catch err
+                err isa DiceError && @reply(err.text)
+                err isa InterruptException && rethrow()
+                showerror(stdout, err)
+                println()
+                if debug_flag
+                    display(stacktrace(catch_backtrace()))
+                    println()
+                end
+                @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
+            finally
+                randomMode == :jrrp && saveUserRNG(userId)
+            end
+            break
         end
-        @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
-    finally
-        randomMode == :jrrp && saveUserRng(userId)
     end
 end
 
@@ -124,9 +121,8 @@ debug_flag = false
 const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
 const log_channel = Channel{MessageLog}(64)
 const active_logs = Dict()
-const getQuantumState = new_quantum_state()
-const getRngState, setRngState! = new_global_state(Random.default_rng())
-# const rngState = Ref{AbstractRNG}(Random.default_rng())
+const rng_state = Ref{Union{AbstractRNG,QuantumRNG}}(Random.default_rng())
+const quantum_state = Ref{Vector{UInt64}}(UInt64[])
 
 function run_dice(mode; debug = false)
     global running_mode = mode

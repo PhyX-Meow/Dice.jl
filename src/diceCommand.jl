@@ -92,7 +92,7 @@ function roll(msg, args) # Only COC check for now
             end
         else
             reply_str *= " " * resultIRs[1].expr
-            reply_str *= num > 1 ? "#$num = " * string(L -> L.total, resultIRs) : " = " * string(resultIRs[1].total)
+            reply_str *= num > 1 ? "#$num = " * string(map(L -> L.total, resultIRs)) : " = " * string(resultIRs[1].total)
         end
         @reply(reply_str, isHidden, true)
     end
@@ -160,12 +160,12 @@ function roll(msg, args) # Only COC check for now
     @reply(reply_str, isHidden, true)
 end
 
-function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 1)
+function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 1, strict_calculate = false)
     str = replace(str, "D" => "d")
     if isempty(str)
-        str = "1d$defaultDice"
+        str = strict_calculate ? "0" : "1d$defaultDice"
     end
-    if 'd' ∉ str && str[1] ∈ "+-*/"
+    if !strict_calculate && str[1] ∈ "+-*/"
         str = "1d$defaultDice" * str
     end
     if match(r"d\d*d", str) !== nothing
@@ -202,7 +202,7 @@ function sanCheck(msg, args) # To do: 恐惧症/躁狂症
 
     str = args[1]
     str = replace(str, r"\s" => "")
-    m = match(r"([d\d\+\-\*]+)/([d\d\+\-\*]+)", str)
+    m = match(r"([d\d+\-*]+)/([d\d+\-*]+)", str)
     if m === nothing
         throw(DiceError("表达式格式错误，算不出来惹"))
     end
@@ -230,19 +230,19 @@ function sanCheck(msg, args) # To do: 恐惧症/躁狂症
     res = "$name 的理智检定：" * res
     @switch check begin
         @case :critical
-        resultIR = rollDice(succ)[1]
+        resultIR = rollDice(succ, strict_calculate = true)[1]
         res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
 
         @case :fumble
-        resultIR = rollDice(fail; lead = true)[1]
+        resultIR = rollDice(fail; lead = true, strict_calculate = true)[1]
         res *= "大失败！\n朝闻道，夕死可矣。\n"
 
         @case :failure
-        resultIR = rollDice(fail)[1]
+        resultIR = rollDice(fail, strict_calculate = true)[1]
         res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
 
         @case _
-        resultIR = rollDice(succ)[1]
+        resultIR = rollDice(succ, strict_calculate = true)[1]
         res *= "成功\n真正的调查员无畏觅见真实！可是捱过了这次，还能捱过几次呢？\n"
     end
     expr = resultIR.expr
@@ -261,7 +261,7 @@ end
 function skillEn(msg, args)
     userId = msg.userId
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
     str = args[1]
     word = match(r"^([^\s\d]+)", str)
@@ -374,6 +374,12 @@ function botInfo(msg, args)
         false,
         false,
     )
+end
+
+function diceHelp(msg, args)
+    m = match(r"link", args[1])
+    m !== nothing && @reply(helpLinks, false, false)
+    @reply(helpText, false, false)
 end
 
 function botSwitch(msg, args)
@@ -518,12 +524,6 @@ function logGet(msg, args)
     @reply("正在导出~请稍候~", false, false)
 end
 
-function diceHelp(msg, args)
-    m = match(r"link", args[1])
-    m !== nothing && @reply(helpLinks, false, false)
-    @reply(helpText, false, false)
-end
-
 function invNew(msg, args) # 新建空白人物
     userId = msg.userId
     str = args[1]
@@ -531,6 +531,9 @@ function invNew(msg, args) # 新建空白人物
     if m !== nothing
         name, skillstr = m.captures
         name = replace(name, r"^\s*|\s*$" => "")
+    elseif match(r"[\-\d]", str) === nothing
+        name = replace(str, r"^\s*|\s*$" => "")
+        skillstr = ""
     else
         name = now() |> string
         skillstr = str
@@ -576,16 +579,16 @@ end
 
 function invRename(msg, args) # 支持将非当前选择人物卡重命名
     if !haskey(userData, "$(msg.userId)/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
     user = userData[msg.userId]
     name = user[" select"]
     new_name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(new_name)
-        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+        throw(DiceError("你说了什么吗，悟理球什么都没收到"))
     end
     if haskey(user, new_name)
-        throw(DiceError("错误，已存在同名角色"))
+        throw(DiceError("已经有叫这个名字的角色了哦，悟理球不忍心把他覆盖掉"))
     end
     new_inv = JLD2.Group(user, new_name)
     inv = user[name]
@@ -601,10 +604,10 @@ end
 function invRemove(msg, args)
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
-        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+        throw(DiceError("你说了什么吗，悟理球什么都没收到"))
     end
     if !haskey(userData, "$(msg.userId)/$name")
-        throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
+        throw(DiceError("不记得你有这张卡捏，检查一下是不是名字写错了吧"))
     end
     user = userData[msg.userId]
     delete!(user, name)
@@ -617,10 +620,10 @@ end
 function invSelect(msg, args) # 与 invRemove 合并
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
-        throw(DiceError("你说了什么吗，我怎么什么都没收到"))
+        throw(DiceError("你说了什么吗，悟理球什么都没收到"))
     end
     if !haskey(userData, "$(msg.userId)/$name")
-        throw(DiceError("我怎么不记得你有这张卡捏，检查一下是不是名字写错了吧"))
+        throw(DiceError("不记得你有这张卡捏，检查一下是不是名字写错了吧"))
     end
     user = userData[msg.userId]
     if haskey(user, " select") && user[" select"] == name
@@ -646,11 +649,11 @@ function invList(msg, args) # 支持按照编号删除
         list_temp = ""
         for name ∈ keys(userData[userId])
             if name[1] != ' '
-                list_temp = list_temp * name * '\n'
+                list_temp = list_temp * "\n" * name
             end
         end
         if !isempty(list_temp)
-            list_str = "备选角色：\n" * list_temp
+            list_str = "备选角色：" * list_temp
         end
     end
     @reply(select_str * "\n—————————————————\n" * list_str)
@@ -659,7 +662,7 @@ end
 function skillShow(msg, args)
     userId = msg.userId
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
     str = args[1]
     word = match(r"^([^\s\d]+)", str)
@@ -675,17 +678,44 @@ function skillShow(msg, args)
         elseif haskey(defaultSkill, skill)
             success = defaultSkill[skill]
         else
-            throw(DiceError("$name 好像没有 $(skill) 这个技能耶"))
+            @reply("$name 好像没有 $(skill) 这个技能耶")
         end
         @reply("$name 的 $(skill)：$success")
     end
     @reply("显示所有技能值的功能还木有写出来...")
 end
 
-function skillSet(msg, args) # Add .st rm
+function skillRemove(msg, args)
     userId = msg.userId
     if !haskey(userData, "$userId/ select")
-        throw(DiceError("当前未选择人物卡，请先使用 .pc [人物姓名] 选择人物卡或使用 .new [姓名-<属性列表>] 创建人物卡"))
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
+    end
+    str = args[1]
+    word = match(r"^([^\s\d]+)", str)
+    name = userData[userId][" select"]
+    if word !== nothing
+        skill = word.captures[1] |> lowercase
+        if haskey(skillAlias, skill)
+            skill = skillAlias[skill]
+        end
+        inv = userData[userId][name]
+        if haskey(defaultSkill, skill)
+            inv[skill] = defaultSkill[skill]
+            @reply("已经将 $name 的 $skill 技能恢复到初始值")
+        elseif haskey(inv, skill)
+            delete!(inv, skill)
+            @reply("$name 忘记了 $skill 的用法")
+        else
+            @reply("$name 好像本来就不会 $skill")
+        end
+    end
+    @reply("悟理球没法删掉没有名字的技能！")
+end
+
+function skillSet(msg, args)
+    userId = msg.userId
+    if !haskey(userData, "$userId/ select")
+        throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
 
     str = replace(args[2], r"\s" => "")
@@ -697,7 +727,7 @@ function skillSet(msg, args) # Add .st rm
     inv = userData[userId][name]
 
     text = "$name 的技能值变化："
-    for m ∈ eachmatch(r"([^\d\(\)\+\-\*]*)([\+\-]?)([d\d\(\)\+\-\*]+)", str)
+    for m ∈ eachmatch(r"([^\d()+\-*]*)([+\-]?)([d\d()+\-*]+)", str)
         skill = m.captures[1] |> lowercase
         if haskey(skillAlias, skill)
             skill = skillAlias[skill]
@@ -732,6 +762,127 @@ function skillSet(msg, args) # Add .st rm
     end
     setJLD!(inv, "SaveTime" => now())
     @reply(text)
+end
+
+function initAdd(msg, args; overwrite = false) # 重写为读取完一次性添加
+    if !haskey(group_init_list, msg.groupId)
+        group_init_list[msg.groupId] = Ref{InitialList}(InitialList())
+    end
+    the_list = group_init_list[msg.groupId][]
+    str = replace(args[1], r"[\s,，;、]+" => ",")
+    str = replace(str, r"^,|,$" => "")
+    buffer = IOBuffer()
+    print(buffer, "添加了先攻条目")
+    try
+        for sub ∈ eachsplit(str, ",")
+            isempty(sub) && (sub = "+0")
+            for m ∈ eachmatch(r"([^\d()+\-*#]*)([d\d()+\-*]*)(#[d\d()+\-*]*)?", sub)
+                isempty(m.match) && continue
+                name, adjust_value, num_str = m.captures
+                item_number = 0
+                if isempty(name)
+                    name = msg.userName
+                else
+                    query_item = query_initial_list(the_list, name)
+                    if query_item !== nothing && query_item.name != name # Which means $name is like XXa
+                        !overwrite && throw(DiceError("错误，先攻列表中已存在同名条目：$name"))
+                        item_number = last(name) - 'a' + 1
+                        name = query_item.name
+                    end
+                end
+                isempty(adjust_value) && (adjust_value = "1d20+0")
+                num = 1
+                if num_str !== nothing && length(num_str) > 1
+                    num_str[2] == '+' && (overwrite = false)
+                    num = rollDice(@view(num_str[2:end]); defaultDice = 20, strict_calculate = true)[1].total
+                    num <= 0 && continue
+                end
+                item_number > 0 && num > 1 && throw(DiceError("错误，修改单个条目的时候不允许添加次数！"))
+                num > 10 && throw(DiceError("一次性添加的人太多了，骰子骰不过来了啦"))
+                resultIRs = rollDice(adjust_value; defaultDice = 20, times = num)
+                overwrite && delete_from_initial_list(the_list, name, item_number; preserve_multiple = false)
+                for L ∈ resultIRs
+                    entry_name = add_to_initial_list(the_list, name, L.total; number = item_number)
+                    if 'd' ∈ L.expr
+                        print(buffer, "\n$(entry_name)：$(L.expr)=$(L.total)")
+                    else
+                        print(buffer, "\n$(entry_name)：$(L.total)")
+                    end
+                end
+            end
+        end
+        @reply(String(take!(buffer)))
+    catch err
+        reply_str = String(take!(buffer))
+        '\n' ∈ reply_str && DiceReply(reply_str)(msg)
+        rethrow()
+    end
+end
+initSet(msg, args) = initAdd(msg, args; overwrite = true)
+
+function initRemove(msg, args)
+    !haskey(group_init_list, msg.groupId) && @reply("先攻列表空空如也~没有条目可以移除")
+    the_list = group_init_list[msg.groupId][]
+    str = replace(args[1], r"^\s*|\s*$" => "")
+    isempty(str) && throw(DiceError("你说了什么吗，悟理球什么都没收到"))
+    if last(str) == '*'
+        name = @view str[1:prevind(str, end, 1)]
+        if isempty(name)
+            empty!(the_list.items)
+            empty!(the_list.multiple.map)
+            @reply("已清空先攻列表~悟理球准备好下一场战斗了！")
+        end
+        if the_list.multiple[name] > 0
+            delete_from_initial_list(the_list, name, 0; preserve_multiple = false)
+            @reply("再见了，所有的$(name)！")
+        end
+        throw(DiceError("先攻列表里真的有这个条目吗？悟理球没有找到"))
+    end
+    query_item = query_initial_list(the_list, str)
+    query_item === nothing && throw(DiceError("先攻列表里真的有这个条目吗？悟理球没有找到"))
+    if the_list.multiple[str] > 0
+        query_item.number > 1 && @reply("存在多个条目的名字是 $(str)，请指明或使用 `.init rm $(str)*` 删除全部")
+        delete_from_initial_list(the_list, str, 1)
+        @reply("$str 已经不再属于这场战斗了")
+    end
+    if 'a' <= last(str) <= 'z'
+        delete_from_initial_list(the_list, @view(str[1:prevind(str, end, 1)]), last(str) - 'a' + 1)
+        @reply("$str 已经不再属于这场战斗了")
+    end
+    nothing
+end
+
+function initList(msg, args)
+    !haskey(group_init_list, msg.groupId) && @reply("当前先攻列表为空，要开启一场新的战斗吗？")
+    the_list = group_init_list[msg.groupId][]
+    length(the_list) == 0 && @reply("当前先攻列表为空，要开启一场新的战斗吗？")
+    buffer = IOBuffer()
+    print(buffer, "当前先攻列表：")
+    priority = typemax(Int64)
+    for (it, val) ∈ the_list.items
+        if priority > val
+            priority = val
+            print(buffer, "\n", val, "：")
+        else
+            print(buffer, "、")
+        end
+        name = it.name
+        if the_list.multiple[name] > 1
+            name *= '`' + it.number
+        end
+        print(buffer, name)
+    end
+    @reply(String(take!(buffer)), false, false)
+end
+
+function initClear(msg, args)
+    if !haskey(group_init_list, msg.groupId)
+        group_init_list[msg.groupId] = Ref{InitialList}(InitialList())
+    end
+    the_list = group_init_list[msg.groupId][]
+    empty!(the_list.items)
+    empty!(the_list.multiple.map)
+    @reply("已清空先攻列表~悟理球准备好下一场战斗了！")
 end
 
 function randomTi(msg, args)
@@ -772,6 +923,7 @@ function fuck2060(msg, args)
 end
 
 const cmdList = [
+    DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", Set([:group])),
     DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", Set([:group, :private])),
     DiceCmd(charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
     DiceCmd(charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
@@ -789,6 +941,7 @@ const cmdList = [
     DiceCmd(invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
     DiceCmd(skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
     DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
+    DiceCmd(skillRemove, r"^st\s*(?:del|rm|remove)\s*(.*)", "删除技能项", Set([:group, :private])),
     DiceCmd(sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
     DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
     DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
@@ -798,6 +951,10 @@ const cmdList = [
     DiceCmd(logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", Set([:group])),
     DiceCmd(logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
     DiceCmd(logGet, r"^log (?:get|export)\s*(.*)", "导出群聊日志", Set([:group])),
+    DiceCmd(initAdd, r"^init\s*add([\s\S]*)", "设置先攻", Set([:group])),
+    DiceCmd(initClear, r"^init\s*(?:clear)", "清空先攻列表", Set([:group])),
+    DiceCmd(initRemove, r"^init\s*(?:del|rm|remove)\s*(.*)", "删除先攻列表元素", Set([:group])),
+    DiceCmd(initList, r"^init\s*(?:list|show)?", "先攻列表", Set([:group])),
     DiceCmd(jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
     DiceCmd(fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
 ]

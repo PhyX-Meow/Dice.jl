@@ -354,6 +354,80 @@ begin
     ↓(L, R) = L * R
 end
 
+struct InitialItem
+    name::String
+    number::Int64
+end
+struct InitialList
+    multiple::Accumulator{String,Int64}
+    items::PriorityQueue{InitialItem,Int64}
+end
+InitialList() = InitialList(counter(String), PriorityQueue{InitialItem,Int64}(Base.Order.Reverse))
+Base.length(L::InitialList) = length(L.items)
+
+function query_initial_list(the_list::InitialList, name::AbstractString)
+    isempty(name) && throw(DiceError("错误，遇到了空的条目名"))
+    if the_list.multiple[name] > 0
+        local max_item = InitialItem(name, 0)
+        for it ∈ keys(the_list.items)
+            if it.name == name && it.number > max_item.number
+                max_item = it
+            end
+        end
+        return max_item.number > 0 ? max_item : nothing
+    end
+    if 'a' <= last(name) <= 'z'
+        base_name = @view name[1:prevind(name, end, 1)]
+        isempty(base_name) && throw(DiceError("错误，遇到了空的条目名"))
+        if the_list.multiple[base_name] > 0
+            number = last(name) - 'a' + 1
+            for it ∈ keys(the_list.items)
+                if it.name == base_name && it.number == number
+                    return it
+                end
+            end
+            return nothing
+        end
+    end
+    return nothing
+end
+function add_to_initial_list(the_list::InitialList, name::AbstractString, val::Int64; number = 0)
+    the_list.multiple[name] > 25 && throw(DiceError("同名条目过多，字母都要用光了！"))
+    if number == 0
+        number = inc!(the_list.multiple, name)
+    elseif the_list.multiple[name] < number
+        the_list.multiple[name] = number
+    end
+    enqueue!(the_list.items, InitialItem(name, number), val)
+    name_with_number = name * ('`' + number)
+    the_list.multiple[name_with_number] > 0 && throw("存在冲突条目：$(name_with_number)，请先清理冲突的条目")
+    return number > 1 ? name_with_number : name
+end
+function delete_from_initial_list(the_list::InitialList, name::AbstractString, number::Int64; preserve_multiple = true)
+    the_list.multiple[name] <= 0 && return nothing
+    to_be_deleted = InitialItem[]
+    count = 0
+    for (it, val) ∈ the_list.items
+        it.name != name && continue
+        if number == 0 || it.number == number
+            push!(to_be_deleted, it)
+        else
+            count = max(count, val)
+        end
+    end
+    for it ∈ to_be_deleted
+        delete!(the_list.items, it)
+    end
+    if !preserve_multiple
+        if count > 0
+            the_list.multiple[name] = count
+        else
+            reset!(the_list.multiple, name)
+        end
+    end
+    return nothing
+end
+
 struct MessageLog
     type::Symbol
     id::Int64

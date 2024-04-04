@@ -5,6 +5,7 @@ version = "0.4.0"
 
 [deps]
 ConfigEnv = "01234589-554d-41b7-ae5c-7b6ee2db6796"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"

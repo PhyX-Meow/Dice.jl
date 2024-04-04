@@ -8,6 +8,7 @@ using JSON3
 using Dates
 using Random
 using MLStyle
+using DataStructures
 
 include("utils.jl")
 include("const.jl")
@@ -120,7 +121,8 @@ running_mode = NotRunning()
 debug_flag = false
 const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
 const log_channel = Channel{MessageLog}(64)
-const active_logs = Dict()
+const active_logs = Dict{String,Ref{GameLog}}()
+const group_init_list = Dict{String,Ref{InitialList}}()
 const rng_state = Ref{Union{AbstractRNG,QuantumRNG}}(Random.default_rng())
 const quantum_state = Ref{Vector{UInt64}}(UInt64[])
 

@@ -78,7 +78,7 @@ function diceReply(::TGMode, C::Channel)
             println(resp)
         end
 
-        if msg.type == :group
+        if msg.type == :group # ToDo: 处理撤回和引用
             put!(log_channel, MessageLog(
                 :msg,
                 resp.message_id,

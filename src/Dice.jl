@@ -140,21 +140,21 @@ function run_dice(mode; debug = false)
     try
         run_bot(mode, diceMain)
     catch err
-        if err isa InterruptException
-            println("正在关闭悟理球...")
-            return nothing
-        end
         showerror(stdout, err)
         println()
         if debug_flag
             display(stacktrace(catch_backtrace()))
             println()
         end
-    finally
-        Base.close(groupData)
-        Base.close(jrrpCache)
-        Base.close(userData)
     end
+end
+
+function handle_exit()
+    Base.close(message_channel)
+    Base.close(log_channel)
+    Base.close(groupData)
+    Base.close(jrrpCache)
+    Base.close(userData)
 end
 
 end # Module

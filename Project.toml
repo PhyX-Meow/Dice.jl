@@ -1,7 +1,7 @@
 name = "Dice"
 uuid = "c81b9fed-521b-4ec1-87e0-ceb18a1eac4a"
 authors = ["phyxmeow <XueHaotian@outlook.com>"]
-version = "0.4.0"
+version = "0.7.0"
 
 [deps]
 ConfigEnv = "01234589-554d-41b7-ae5c-7b6ee2db6796"

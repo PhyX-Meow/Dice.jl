@@ -48,7 +48,7 @@ function skillCheck(success::Int, rule::Symbol, bonus::Int)
         end
     end
     res *= "/$(success)。"
-    return res, check # 重构这里的代码
+    return res, check
 end
 
 function roll(msg, args) # Only COC check for now
@@ -524,7 +524,7 @@ function logGet(msg, args)
     @reply("正在导出~请稍候~", false, false)
 end
 
-function invNew(msg, args) # 新建空白人物
+function invNew(msg, args)
     userId = msg.userId
     str = args[1]
     m = match(r"(.*)-(.*)", str)
@@ -577,7 +577,7 @@ function invNew(msg, args) # 新建空白人物
     @reply("你的角色已经刻在悟理球的 DNA 里了。")
 end
 
-function invRename(msg, args) # 支持将非当前选择人物卡重命名
+function invRename(msg, args) # ToDo: 支持将非当前选择人物卡重命名
     if !haskey(userData, "$(msg.userId)/ select")
         throw(DiceError("当前未选择人物卡，请先使用 `.pc 人物姓名` 选择人物卡或使用 `.new 姓名-属性列表` 创建人物卡"))
     end
@@ -617,7 +617,7 @@ function invRemove(msg, args)
     @reply("$name 已从这个世界上清除")
 end
 
-function invSelect(msg, args) # 与 invRemove 合并
+function invSelect(msg, args) # ToDo: 与 invRemove 合并
     name = replace(args[1], r"^\s*|\s*$" => "")
     if isempty(name)
         throw(DiceError("你说了什么吗，悟理球什么都没收到"))
@@ -637,7 +637,7 @@ function invLock(msg, args)
     @reply("Working in Progress...")
 end
 
-function invList(msg, args) # 支持按照编号删除
+function invList(msg, args) # ToDo: 支持按照编号删除
     userId = msg.userId
     select_str = "当前未选定任何角色"
     list_str = "角色卡列表为空"
@@ -764,7 +764,7 @@ function skillSet(msg, args)
     @reply(text)
 end
 
-function initAdd(msg, args; overwrite = false) # 重写为读取完一次性添加
+function initAdd(msg, args; overwrite = false) # ToDo: 重写为读取完一次性添加
     if !haskey(group_init_list, msg.groupId)
         group_init_list[msg.groupId] = Ref{InitialList}(InitialList())
     end

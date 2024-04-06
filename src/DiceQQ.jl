@@ -166,7 +166,7 @@ function diceReply(::QQMode, C::Channel)
             reply_id = JSON3.read(resp.body).data.message_id
             text = reply.text
             if reply.ref
-                text = text * "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]"
+                text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]" * text
             end
             put!(log_channel, MessageLog(
                 :msg,

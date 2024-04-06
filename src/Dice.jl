@@ -66,10 +66,12 @@ function diceMain(rough_msg::AbstractMessage)
                 ret = "begin $superCommand end" |> Meta.parse |> eval
             catch err
                 err isa InterruptException && rethrow()
-                if err isa Base.Meta.ParseError
+                if err isa Meta.ParseError
                     err_msg = err.msg
                 else
-                    err_msg = string(err)
+                    buffer = IOBuffer()
+                    showerror(buffer, err)
+                    err_msg = String(take!(io))
                 end
                 @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
             end

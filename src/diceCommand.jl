@@ -918,43 +918,56 @@ function jrrp(msg, args)
     @reply("今天你的手上粘了 $rp 个悟理球！")
 end
 
+function pingPong(msg, args)
+    isnothing(args[1]) && @reply("Pong！悟理球粘到了你的手上！")
+    t = parse(Int, args[1])
+    t > 86400 && @reply("时间太长了，信号会丢失的qwq")
+    @async begin
+        sleep(t)
+        @reply("Pong！$(t)秒过去了~")
+    end
+    nothing
+end
+
 function fuck2060(msg, args)
     @reply("玩你🐎透明字符呢，滚！", false, true)
 end
 
 const cmdList = [
-    DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", Set([:group])),
-    DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", Set([:group, :private])),
-    DiceCmd(charMake, r"^coc7?(.*)", "人物做成", Set([:group, :private])),
-    DiceCmd(charMakeDnd, r"^dnd(.*)", "DnD人物做成", Set([:group, :private])),
-    DiceCmd(botStart, r"^start$", "Hello, world!", Set([:private])),
-    DiceCmd(botSwitch, r"^bot\s*(on|off|exit)", "bot开关", Set([:group, :off])),
-    DiceCmd(botInfo, r"^bot$", "bot信息", Set([:group, :private])),
-    DiceCmd(diceSetConfig, r"^set\s*(.*)", "Dice设置", Set([:group, :private])),
-    DiceCmd(diceHelp, r"^help\s*(.*)", "获取帮助", Set([:group, :private])),
-    DiceCmd(invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", Set([:group, :private])),
-    DiceCmd(invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", Set([:group, :private])),
-    DiceCmd(invRename, r"^nn\s*(.*)", "重命名人物卡", Set([:group, :private])),
-    DiceCmd(invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", Set([:group, :private])),
-    DiceCmd(invLock, r"^pc (lock|unlock)", "锁定人物卡", Set([:group, :private])),
-    DiceCmd(invList, r"^pc\s*(?:list)?$", "当前人物卡列表", Set([:group, :private])),
-    DiceCmd(invSelect, r"^pc\s*(.+)", "切换人物卡", Set([:group, :private])),
-    DiceCmd(skillShow, r"^st\s*show\s*(.*)", "查询技能值", Set([:group, :private])),
-    DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", Set([:group, :private])),
-    DiceCmd(skillRemove, r"^st\s*(?:del|rm|remove)\s*(.*)", "删除技能项", Set([:group, :private])),
-    DiceCmd(sanCheck, r"^sc\s*(.*)", "理智检定", Set([:group, :private])),
-    DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", Set([:group, :private])),
-    DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", Set([:group, :private])),
-    DiceCmd(randomLi, r"^li", "随机疯狂发作-总结症状", Set([:group, :private])),
-    DiceCmd(randomGas, r"^gas", "随机煤气灯特质", Set([:group, :private])),
-    DiceCmd(logSwitch, r"^log\s*(new|on|off)\s*(.*)", "开启/关闭日志记录", Set([:group])),
-    DiceCmd(logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", Set([:group])),
-    DiceCmd(logList, r"^log\s*(?:list)?$", "群聊日志列表", Set([:group])),
-    DiceCmd(logGet, r"^log (?:get|export)\s*(.*)", "导出群聊日志", Set([:group])),
-    DiceCmd(initAdd, r"^init\s*add([\s\S]*)", "设置先攻", Set([:group])),
-    DiceCmd(initClear, r"^init\s*(?:clear)", "清空先攻列表", Set([:group])),
-    DiceCmd(initRemove, r"^init\s*(?:del|rm|remove)\s*(.*)", "删除先攻列表元素", Set([:group])),
-    DiceCmd(initList, r"^init\s*(?:list|show)?", "先攻列表", Set([:group])),
-    DiceCmd(jrrp, r"^jrrp", "今日人品", Set([:group, :private])),
-    DiceCmd(fuck2060, r"\u2060", "fuck\\u2060", Set([:group, :private])),
+    DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", [:group]),
+    DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", [:group, :private]),
+    DiceCmd(charMake, r"^coc7?(.*)", "人物做成", [:group, :private]),
+    DiceCmd(charMakeDnd, r"^dnd(.*)", "DnD人物做成", [:group, :private]),
+    DiceCmd(botStart, r"^start$", "Hello, world!", [:private]),
+    DiceCmd(botSwitch, r"^bot\s*(on|off|exit)", "bot开关", [:group, :off]),
+    DiceCmd(botInfo, r"^bot$", "bot信息", [:group, :private]),
+    DiceCmd(diceSetConfig, r"^set\s*(.*)", "Dice设置", [:group, :private]),
+    DiceCmd(diceHelp, r"^help\s*(.*)", "获取帮助", [:group, :private]),
+    DiceCmd(invNew, r"^(?:pc )?new\s*(.*)", "新建人物卡", [:group, :private]),
+    DiceCmd(invRename, r"^pc (?:nn|mv|rename)\s*(.*)", "重命名人物卡", [:group, :private]),
+    DiceCmd(invRename, r"^nn\s*(.*)", "重命名人物卡", [:group, :private]),
+    DiceCmd(invRemove, r"^pc (?:del|rm|remove)\s*(.*)", "删除人物卡", [:group, :private]),
+    DiceCmd(invLock, r"^pc (lock|unlock)", "锁定人物卡", [:group, :private]),
+    DiceCmd(invList, r"^pc\s*(?:list)?$", "当前人物卡列表", [:group, :private]),
+    DiceCmd(invSelect, r"^pc\s*(.+)", "切换人物卡", [:group, :private]),
+    DiceCmd(skillShow, r"^st\s*show\s*(.*)", "查询技能值", [:group, :private]),
+    DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", [:group, :private]),
+    DiceCmd(skillRemove, r"^st\s*(?:del|rm|remove)\s*(.*)", "删除技能项", [:group, :private]),
+    DiceCmd(sanCheck, r"^sc\s*(.*)", "理智检定", [:group, :private]),
+    DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", [:group, :private]),
+    DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", [:group, :private]),
+    DiceCmd(randomLi, r"^li", "随机疯狂发作-总结症状", [:group, :private]),
+    DiceCmd(randomGas, r"^gas", "随机煤气灯特质", [:group, :private]),
+    DiceCmd(logSwitch, r"^log\s*(new|on|off)\s*(.*)", "开启/关闭日志记录", [:group]),
+    DiceCmd(logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", [:group]),
+    DiceCmd(logList, r"^log\s*(?:list)?$", "群聊日志列表", [:group]),
+    DiceCmd(logGet, r"^log (?:get|export)\s*(.*)", "导出群聊日志", [:group]),
+    DiceCmd(initAdd, r"^init\s*add([\s\S]*)", "添加先攻", [:group]),
+    DiceCmd(initSet, r"^init\s*set([\s\S]*)", "设置先攻", [:group]),
+    DiceCmd(initClear, r"^init\s*(?:clear|clr)", "清空先攻列表", [:group]),
+    DiceCmd(initRemove, r"^init\s*(?:del|rm|remove)\s*(.*)", "删除先攻列表元素", [:group]),
+    DiceCmd(initList, r"^init\s*(?:list|show)?", "先攻列表", [:group]),
+    DiceCmd(jrrp, r"^jrrp", "今日人品", [:group, :private]),
+    DiceCmd(pingPong, r"^ping\s*(\d+)?", "乒乓", [:group, :private]),
+    DiceCmd(fuck2060, r"\u2060", "fuck\\u2060", [:group, :private]),
 ]

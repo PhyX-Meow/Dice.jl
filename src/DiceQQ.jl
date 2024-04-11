@@ -12,12 +12,12 @@ function run_bot(::QQMode, foo::Function)
     end
 end
 
-function onebotPostJSON(action, params)
-    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = params)
+function onebotPostJSON(action, params; server = onebot_http_server)
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json"], body = params)
 end
 
-function onebotPostJSON(action)
-    HTTP.post(onebot_http_server * "/" * action, ["Content-Type" => "application/json"], body = "{}")
+function onebotPostJSON(action; server = onebot_http_server)
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json"], body = "{}")
 end
 
 function getSelf()

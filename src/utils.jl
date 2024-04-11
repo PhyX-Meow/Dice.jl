@@ -16,7 +16,7 @@ struct DiceCmd
     func::Function
     reg::Regex
     desp::String
-    options::Set{Symbol}
+    options::Vector{Symbol}
 end
 
 struct DiceReply

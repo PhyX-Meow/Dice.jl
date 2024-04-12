@@ -33,7 +33,7 @@ function parseMsg(wrapped::TGMessage)
         type = :private
         groupId = "private"
     end
-    text = msg.message.text
+    text = replace(msg.message.text, r"^\s*|\s*$" => "")
     isempty(text) && return nothing
     return DiceMsg(time, type, groupId, userId, userName, msg.message.message_id, text)
 end

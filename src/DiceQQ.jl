@@ -108,6 +108,7 @@ function parseMsg(wrapped::QQMessage)
         m.captures[1] != selfQQ && return nothing
         text = m.captures[2]
     end
+    text = replace(text, r"^\s*|\s*$" => "")
     isempty(text) && return nothing
     return DiceMsg(time, type, groupId, userId, userName, msg.message_id, text)
 end

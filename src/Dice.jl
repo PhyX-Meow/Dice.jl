@@ -53,7 +53,6 @@ function diceMain(rough_msg::AbstractMessage)
         @reply(rand(kwList[str]), false, false)
     end
 
-    str = replace(str, r"^\s*|\s*$" => "")
     str[1] ∉ ['.', '/', '。'] && return nothing
     str = replace(str, r"^[./。]\s*|\s*$" => "")
 

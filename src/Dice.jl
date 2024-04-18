@@ -71,7 +71,7 @@ function diceMain(rough_msg::AbstractMessage)
                 else
                     buffer = IOBuffer()
                     showerror(buffer, err)
-                    err_msg = String(take!(io))
+                    err_msg = String(take!(buffer))
                 end
                 @reply("执行失败，错误信息：\n```\n$err_msg\n```", false, false)
             end

@@ -90,7 +90,7 @@ function parseMsg(wrapped::QQMessage)
     time = unix2datetime(msg.time) + local_time_shift
     groupId = "private"
     userId = msg.user_id |> string
-    userName = msg.sender.nickname
+    userName = replace(msg.sender.nickname, r"^\s*|\s*$" => "")
     type = Symbol(msg.message_type)
     if type == :group
         msg.sub_type != "normal" && return nothing

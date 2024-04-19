@@ -502,7 +502,7 @@ end
 function logList(msg, args)
     groupId = msg.groupId
     group = groupData[groupId]
-    logging = haskey(active_logs, groupId) ? active_logs(groupId)[].name : ""
+    logging = haskey(active_logs, groupId) ? active_logs[groupId][].name : ""
     reply_str = isempty(logging) ? "没有正在记录的日志~\n" : "正在记录：$logging\n"
     if !haskey(group, "logs") || isempty(group["logs"])
         reply_str *= "没有记录完成的日志~"

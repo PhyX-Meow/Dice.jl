@@ -118,21 +118,32 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.ty
         @case :group
         target = "group"
         target_id = msg.groupId
-        CQref = ref ? "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]" : ""
 
         @case :private
         target = "user"
         target_id = msg.userId
-        CQref = ref ? "[CQ:reply,id=$(msg.message_id)]" : ""
 
         @case _
     end
+    seg_reply = ref ?
+                """
+                {
+                    "type": "reply",
+                    "data": {"id": "$(msg.message_id)"}
+                },
+                """ : ""
     text_escape = replace(text, r"\r" => "\\r", r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t")
     """
     {
         "message_type": "$type",
         "$(target)_id": $(target_id),
-        "message": "$(CQref)$(text_escape)"
+        "message": [
+            $(seg_reply)
+            {
+                "type": "text",
+                "data": {"text": "$(text_escape)"}
+            }
+        ]
     }
     """
 end

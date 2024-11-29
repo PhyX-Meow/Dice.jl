@@ -103,10 +103,14 @@ function parseMsg(wrapped::QQMessage)
     end
 
     text = replace(msg.raw_message, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
-    m = match(r"^\[CQ:at,qq=(\d*)\]\s*([\S\s]*)", text)
+    m = match(r"^\[CQ:at,qq=(\d*),name=(.*)\]\s*([\S\s]*)", text)
     if m !== nothing
         m.captures[1] != selfQQ && return nothing
-        text = m.captures[2]
+        text = m.captures[3]
+    end
+    m = match(r"^\[CQ:mface\]\[(.*)\]", text)
+    if m !== nothing && (haskey(defaultSkill, m.captures[1]) || haskey(skillAlias, m.captures[1]))
+        text = ".ra $(m.captures[1])"
     end
     text = replace(text, r"^\s*|\s*$" => "")
     isempty(text) && return nothing

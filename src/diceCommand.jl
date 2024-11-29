@@ -122,6 +122,7 @@ function roll(msg, args) # Only COC check for now
     num > 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
     success = 1
+    reply_str = ""
     patt = [r"\s(\d+)$", r"^(\d+)\s", r"(\d+)$", r"^(\d+)"]
     for p ∈ patt
         m = match(p, check_str)
@@ -142,6 +143,7 @@ function roll(msg, args) # Only COC check for now
         if haskey(userData[userId], " select")
             name = userData[userId][" select"]
             inv = userData[userId][name]
+            reply_str *= "$(name) 的 $(skill) 检定："
             if haskey(inv, skill)
                 success = inv[skill]
             end
@@ -149,7 +151,6 @@ function roll(msg, args) # Only COC check for now
     end
 
     @label _do_check_
-    reply_str = ""
     for i ∈ 1:num
         i > 1 && (reply_str *= "\n")
         res, check = skillCheck(success, rule, bonus)

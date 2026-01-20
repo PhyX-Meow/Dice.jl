@@ -136,7 +136,7 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.ty
                     "data": {"id": "$(msg.message_id)"}
                 },
                 """ : ""
-    text_escape = replace(text, r"\r" => "\\r", r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t")
+    text_escape = replace(text, r"\r" => "\\r", r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t", r"\\([\(\)\[\]])" => s"\\\\\1")
     """
     {
         "message_type": "$type",

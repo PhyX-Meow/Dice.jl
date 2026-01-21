@@ -1,4 +1,4 @@
-const diceVersion = v"0.7.2"
+const diceVersion = v"0.7.3"
 
 const superAdminList = Dict(TGMode() => [0x39e50346e0847d75], QQMode() => [0xfcf798d59bf3ed7b])
 const local_time_shift = Hour(8)

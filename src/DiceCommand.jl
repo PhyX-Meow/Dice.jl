@@ -143,7 +143,7 @@ function roll(msg, args) # Only COC check for now
         if haskey(userData[userId], " select")
             name = userData[userId][" select"]
             inv = userData[userId][name]
-            reply_str *= "$(name) 的 $(skill) 检定："
+            reply_str *= "$(name)的$(skill)检定："
             if haskey(inv, skill)
                 success = inv[skill]
             end

@@ -28,19 +28,6 @@ DiceReply(str::AbstractString, hidden::Bool, ref::Bool) = DiceReply(str, hidden,
 DiceReply(str::AbstractString) = DiceReply(str, false, true)
 const noReply = DiceReply("", false, false)
 
-abstract type AbstractMessage end
-struct TGMessage <: AbstractMessage
-    body
-end
-struct QQMessage <: AbstractMessage
-    body
-end
-
-abstract type RunningMode end
-struct TGMode <: RunningMode end
-struct QQMode <: RunningMode end
-struct NotRunning <: RunningMode end
-
 @active Re{r::Regex}(x) begin
     m = match(r, string(x))
     if m !== nothing
@@ -54,6 +41,18 @@ macro assure(ex)
     quote
         !$(ex) && return nothing
     end |> esc
+end
+
+macro async_log(expr)
+    quote
+        @async try
+            $(esc(expr))
+        catch err
+            bt = stacktrace(catch_backtrace())
+            showerror(stderr, err, bt)
+            rethrow(err)
+        end
+    end
 end
 
 function _reply_(msg, reply::DiceReply)
@@ -157,7 +156,7 @@ function getQuantumSeed()
                 throw(DiceError("发生量子错误！"))
             end
         end
-        dataJSON = resp.body |> String |> JSON3.read
+        dataJSON = resp.body |> String |> JSON.parse
         if !dataJSON.success
             throw(DiceError("发生量子错误！"))
         end

@@ -1,13 +1,17 @@
 using HTTP
 
-function run_bot(::QQMode, foo::Function)
+function run_bot(foo::Function)
     global onebot_ws_server = get(ENV, "CQ_WS_SERVER", "")
     global onebot_http_server = get(ENV, "CQ_HTTP_SERVER", "")
     global selfQQ, selfQQName = getSelf()
+    global friendList = getFriends()
+    if debug_flag
+        println("[Debug] Login OK, uin: $(selfQQ), nickname: $(selfQQName)")
+    end
     WebSockets.open(onebot_ws_server) do ws
         for str ∈ ws
-            msg = JSON3.read(str)
-            foo(QQMessage(msg))
+            msg = JSON.parse(str)
+            foo(msg)
         end
     end
 end
@@ -22,99 +26,116 @@ end
 
 function getSelf()
     resp = onebotPostJSON("get_login_info")
-    info = JSON3.read(resp.body).data
-    selfId = string(info.user_id)
+    info = JSON.parse(resp.body).data
+    selfId = string(info.uin)
     selfName = info.nickname
     return (selfId, selfName)
 end
 
-function sendGroupMessage(::QQMode; text, chat_id)
+function getFriends()
+    resp = onebotPostJSON("get_friend_list")
+    data = JSON.parse(resp.body).data
+    return map(x -> x.user_id, data.friends) |> Set
+end
+
+function sendGroupMessage(; text, chat_id)
     msg_json = """
     {
         "group_id": $chat_id,
-        "message": "$text"
+        "message": [
+            {"type":"text","data":{"text":"$text"}}
+        ]
     }
     """
-    onebotPostJSON("send_group_msg", msg_json)
+    onebotPostJSON("send_group_message", msg_json)
 end
 
-function sendPrivateMessage(::QQMode; text, chat_id)
+function sendPrivateMessage(; text, chat_id)
     msg_json = """
     {
         "user_id": $chat_id,
-        "message": "$text"
+        "message": [
+            {"type":"text","data":{"text":"$text"}}
+        ]
     }
     """
-    onebotPostJSON("send_private_msg", msg_json)
+    onebotPostJSON("send_private_message", msg_json)
 end
 
-function leaveGroup(::QQMode; chat_id)
+function leaveGroup(; chat_id)
     msg_json = """
     {
         "group_id": $chat_id
     }
     """
-    onebotPostJSON("set_group_leave", msg_json)
+    onebotPostJSON("quit_group", msg_json)
 end
 
-function sendGroupFile(::QQMode; path, chat_id, name = "")
+function sendGroupFile(; path, chat_id, name = "")
     isempty(name) && (name = splitpath(path)[end])
     full_path = joinpath(pwd(), path)
     msg_json = """
     {
         "group_id": $chat_id,
-        "file": "$full_path",
-        "name": "$name"
+        "file_uri": "file://$full_path",
+        "file_name": "$name"
     }
     """
     onebotPostJSON("upload_group_file", msg_json)
 end
 
-function isQQFriend(user_id::Int64)
-    return true
+isFriend(user_id::Int64) = user_id ∈ friendList
+isFriend(userId::String) = isFriend(parse(Int64, userId))
 
-    reply = onebotPostJSON("get_friend_list")
-    list = JSON3.read(reply.body)
-    qq_list = map(x -> x.user_id, list)
-    return user_id ∈ qq_list
-end
-isQQFriend(userId::String) = isQQFriend(parse(Int64, userId))
-
-function parseMsg(wrapped::QQMessage)
-    msg = wrapped.body
-    !haskey(msg, "post_type") && return nothing
-    msg.post_type == "request" && return handleRequest(msg)
-    msg.post_type == "notice" && return handleNotice(msg)
-    msg.post_type != "message" && return nothing
+function parseMsg(rough_msg)
+    !haskey(rough_msg, "event_type") && return nothing
+    rough_msg.event_type != "message_receive" && return handleRequestNotice(rough_msg)
+    msg = rough_msg.data
 
     time = unix2datetime(msg.time) + local_time_shift
+    userName = userId = msg.sender_id |> string
+    type = :private
     groupId = "private"
-    userId = msg.user_id |> string
-    userName = replace(msg.sender.nickname, r"^\s*|\s*$" => "")
-    type = Symbol(msg.message_type)
-    if type == :group
-        msg.sub_type != "normal" && return nothing
-        groupId = msg.group_id |> string
-        !isempty(msg.sender.card) && (userName = msg.sender.card)
-    elseif type == :private
-        msg.sub_type != "friend" && return nothing
-    else
+    @switch msg.message_scene begin
+        @case "group"
+        type = :group
+        groupId = msg.group.group_id |> string
+        userName = isempty(msg.group_member.card) ? msg.group_member.nickname : msg.group_member.card
+
+        @case "friend"
+        userName = msg.friend.nickname
+        if userName === nothing # What the hell?
+            userName = "null"
+        end
+
+        @case _ # "temp"
         return nothing
     end
+    userName = replace(userName, r"^\s*|\s*$" => "")
 
-    text = replace(msg.raw_message, r"&amp;" => "&", r"&#91;" => "[", r"&#93;" => "]")
-    m = match(r"^\[CQ:at,qq=(\d*),name=(.*)\]\s*([\S\s]*)", text)
-    if m !== nothing
-        m.captures[1] != selfQQ && return nothing
-        text = m.captures[3]
-    end
-    m = match(r"^\[CQ:mface\]\[(.*)\]", text)
-    if m !== nothing && (haskey(defaultSkill, m.captures[1]) || haskey(skillAlias, m.captures[1]))
-        text = ".ra $(m.captures[1])"
+    text = ""
+    for seg in msg.segments
+        @switch seg.type begin
+            @case "mention"
+            seg.data.user_id != selfQQ && return nothing
+
+            @case "text"
+            text *= seg.data.text
+
+            @case "market_face"
+            m = match(r"\[(.*)\]", seg.data.summary)
+            if m !== nothing && (haskey(defaultSkill, m.captures[1]) || haskey(skillAlias, m.captures[1]))
+                text *= ".rc $(m.captures[1])"
+            end
+
+            @case _
+            text *= ' '
+        end
     end
     text = replace(text, r"^\s*|\s*$" => "")
     isempty(text) && return nothing
-    return DiceMsg(time, type, groupId, userId, userName, msg.message_id, text)
+
+    return DiceMsg(time, type, groupId, userId, userName, msg.message_seq, text)
 end
 
 function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.type, ref::Bool = false)
@@ -133,13 +154,12 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.ty
                 """
                 {
                     "type": "reply",
-                    "data": {"id": "$(msg.message_id)"}
+                    "data": {"message_seq": $(msg.message_id)}
                 },
                 """ : ""
     text_escape = replace(text, r"\r" => "\\r", r"\n" => "\\n", r"\"" => "\\\"", r"\t" => "\\t", r"\\([\(\)\[\]])" => s"\\\\\1")
     """
     {
-        "message_type": "$type",
         "$(target)_id": $(target_id),
         "message": [
             $(seg_reply)
@@ -152,7 +172,7 @@ function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.ty
     """
 end
 
-function diceReply(::QQMode, C::Channel)
+function diceReply(C::Channel)
     for (msg, reply) ∈ C
 
         if debug_flag
@@ -164,22 +184,25 @@ function diceReply(::QQMode, C::Channel)
         reply_json = if length(reply.text) > 1024
             makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！")
         elseif reply.hidden
-            if isQQFriend(msg.userId)
+            if isFriend(msg.userId)
                 makeReplyJSON(msg, text = reply.text, type = :private)
             else
-                makeReplyJSON(msg, text = "错误，悟理球无法向非好友发送消息，请先添加好友", ref = true)
+                makeReplyJSON(msg, text = "悟理球只给好友发消息！请先添加好友", ref = true)
             end
         else
             makeReplyJSON(msg, text = reply.text, ref = reply.ref)
         end
-        resp = onebotPostJSON("send_msg", reply_json)
+        api = "send_$(msg.type)_message"
+        resp = onebotPostJSON(api, reply_json)
 
         if debug_flag
             println(resp)
         end
 
         if msg.type == :group
-            reply_id = JSON3.read(resp.body).data.message_id
+            data = JSON.parse(resp.body).data
+            reply_id = data.message_seq
+            time = unix2datetime(data.time) + local_time_shift
             text = reply.text
             if reply.ref
                 text = "[CQ:reply,id=$(msg.message_id)][CQ:at,qq=$(msg.userId)]" * text
@@ -187,7 +210,7 @@ function diceReply(::QQMode, C::Channel)
             put!(log_channel, MessageLog(
                 :msg,
                 reply_id,
-                now(),
+                time,
                 msg.groupId,
                 selfQQ,
                 selfQQName,
@@ -197,50 +220,48 @@ function diceReply(::QQMode, C::Channel)
     end
 end
 
-function handleRequest(msg)
-    @switch msg.request_type begin
-        @case "friend"
+function handleRequestNotice(msg)
+    @switch msg.event_type begin
+        @case "friend_request" # Add black list
+        uid = msg.data.initiator_uid
         request_json = """
         {
-            "flag": "$(msg.flag)",
-            "approve": true
+            "initiator_uid": "$(uid)",
+            "is_filtered": false
         }
         """
-        onebotPostJSON("set_friend_add_request", request_json)
+        onebotPostJSON("accept_friend_request", request_json)
+        @async_log begin
+            sleep(1)
+            sendPrivateMessage(; text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = msg.data.initiator_id)
+        end
 
-        @case "group"
-        msg.sub_type != "invite" && return nothing
+        @case "group_invitation" # Add black list
+        group_id = msg.data.group_id
+        seq_id = msg.data.invitation_seq
         request_json = """
         {
-            "flag": "$(msg.flag)",
-            "approve": true
+            "group_id": $(group_id),
+            "invitation_seq": $(seq_id)
         }
         """
-        onebotPostJSON("set_group_add_request", request_json)
+        onebotPostJSON("accept_group_invitation", request_json)
 
-        @case _
-    end
-    nothing
-end
+        @case "group_member_increase"
+        msg.self_id == msg.data.user_id && sendGroupMessage(; text = "悟理球出现了！", chat_id = msg.data.group_id)
 
-function handleNotice(msg)
-    @switch msg.notice_type begin
-        @case "group_increase"
-        msg.user_id == msg.self_id && sendGroupMessage(QQMode(); text = "悟理球出现了！", chat_id = msg.group_id)
-
-        @case "friend_add"
-        sendPrivateMessage(QQMode(); text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = msg.user_id)
-
-        @case "group_recall"
-        put!(log_channel, MessageLog(
-            :recall,
-            msg.message_id,
-            unix2datetime(msg.time) + local_time_shift,
-            string(msg.group_id),
-            string(msg.user_id),
-            "绯红之王",
-            "",
-        ))
+        @case "message_recall"
+        if msg.data.message_scene == "group"
+            put!(log_channel, MessageLog(
+                :recall,
+                msg.data.message_seq,
+                unix2datetime(msg.time) + local_time_shift,
+                string(msg.data.peer_id),
+                string(msg.data.sender_id),
+                "绯红之王",
+                "",
+            ))
+        end
 
         @case _
     end

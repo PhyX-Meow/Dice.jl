@@ -1,10 +1,10 @@
 module Dice
 
-export run_dice, TGMode, QQMode
+export run_dice
 
 using HTTP
 using JLD2
-using JSON3
+using JSON
 using Dates
 using Random
 using MLStyle
@@ -12,40 +12,23 @@ using DataStructures
 
 include("utils.jl")
 include("const.jl")
-include("DiceTG.jl")
 include("DiceQQ.jl")
-include("diceCommand.jl")
+include("DiceCommand.jl")
 
-function sendGroupMessage(; text, chat_id)
-    mode = running_mode
-    sendGroupMessage(mode; text = text, chat_id = chat_id)
-end
-
-function leaveGroup(; chat_id)
-    mode = running_mode
-    leaveGroup(mode; chat_id = chat_id)
-end
-
-function sendGroupFile(; path, chat_id, name)
-    mode = running_mode
-    sendGroupFile(mode; path = path, chat_id = chat_id, name = name)
-end
-
-function diceMain(rough_msg::AbstractMessage)
+function diceMain(rough_msg)
 
     if debug_flag
-        show(rough_msg.body)
-        println()
+        JSON.json(rough_msg; pretty = true) |> println
     end
 
-    msg = parseMsg(rough_msg)
-    isnothing(msg) && return nothing
-    groupId = msg.groupId
-    userId = msg.userId
-    str = msg.text
+    dice_msg = parseMsg(rough_msg)
+    isnothing(dice_msg) && return nothing
+    groupId = dice_msg.groupId
+    userId = dice_msg.userId
+    str = dice_msg.text
 
-    if msg.type == :group
-        put!(log_channel, MessageLog(msg))
+    if dice_msg.type == :group
+        put!(log_channel, MessageLog(dice_msg))
     end
 
     # Keyword reply
@@ -57,7 +40,7 @@ function diceMain(rough_msg::AbstractMessage)
     str = replace(str, r"^[./。]\s*|\s*$" => "")
 
     # Super command
-    if hash(userId) ∈ superAdminList[running_mode]
+    if hash(userId) ∈ superAdminList
         m = match(r"eval\s+([\s\S]*)", str)
         if m !== nothing
             superCommand = m.captures[1]
@@ -88,7 +71,7 @@ function diceMain(rough_msg::AbstractMessage)
     randomMode = getConfig("private", userId, "randomMode")
 
     for cmd ∈ cmdList
-        if (ignore && :off ∉ cmd.options) || msg.type ∉ cmd.options
+        if (ignore && :off ∉ cmd.options) || dice_msg.type ∉ cmd.options
             continue
         end
         m = match(cmd.reg, str)
@@ -99,7 +82,7 @@ function diceMain(rough_msg::AbstractMessage)
                     :quantum => QuantumRNG()
                     _ => Random.default_rng()
                 end
-                cmd.func(msg, m.captures)
+                cmd.func(dice_msg, m.captures)
             catch err
                 err isa DiceError && @reply(err.text)
                 err isa InterruptException && rethrow()
@@ -119,7 +102,6 @@ function diceMain(rough_msg::AbstractMessage)
 end
 
 # Global variables
-running_mode = NotRunning()
 debug_flag = false
 const message_channel = Channel{Tuple{DiceMsg,DiceReply}}(64)
 const log_channel = Channel{MessageLog}(64)
@@ -128,26 +110,21 @@ const group_init_list = Dict{String,Ref{InitialList}}()
 const rng_state = Ref{Union{AbstractRNG,QuantumRNG}}(Random.default_rng())
 const quantum_state = Ref{Vector{UInt64}}(UInt64[])
 
-function run_dice(mode; debug = false)
-    global running_mode = mode
+function run_dice(; debug = false)
     debug && (global debug_flag = true)
 
     global groupData = jldopen("groupData.jld2", "a+")
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")
     global userData = jldopen("userData.jld2", "a+")
 
-    @async diceReply(mode, message_channel)
-    @async diceLogging(log_channel)
+    @async_log diceReply(message_channel) # backport
+    @async_log diceLogging(log_channel)
 
     try
-        run_bot(mode, diceMain)
+        run_bot(diceMain)
     catch err
-        showerror(stdout, err)
-        println()
-        if debug_flag
-            display(stacktrace(catch_backtrace()))
-            println()
-        end
+        bt = stacktrace(catch_backtrace())
+        showerror(stdout, err, bt)
     end
 end
 

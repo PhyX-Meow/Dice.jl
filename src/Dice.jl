@@ -14,7 +14,7 @@ include("utils.jl")
 include("const.jl")
 include("DiceTG.jl")
 include("DiceQQ.jl")
-include("diceCommand.jl")
+include("DiceCommand.jl")
 
 function sendGroupMessage(; text, chat_id)
     mode = running_mode
@@ -136,18 +136,14 @@ function run_dice(mode; debug = false)
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")
     global userData = jldopen("userData.jld2", "a+")
 
-    @async diceReply(mode, message_channel)
-    @async diceLogging(log_channel)
+    @async_log diceReply(mode, message_channel)
+    @async_log diceLogging(log_channel)
 
     try
         run_bot(mode, diceMain)
     catch err
-        showerror(stdout, err)
-        println()
-        if debug_flag
-            display(stacktrace(catch_backtrace()))
-            println()
-        end
+        bt = stacktrace(catch_backtrace())
+        showerror(stdout, err, bt)
     end
 end
 

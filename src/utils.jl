@@ -56,6 +56,18 @@ macro assure(ex)
     end |> esc
 end
 
+macro async_log(expr)
+    quote
+        @async try
+            $(esc(expr))
+        catch err
+            bt = stacktrace(catch_backtrace())
+            showerror(stderr, err, bt)
+            rethrow(err)
+        end
+    end
+end
+
 function _reply_(msg, reply::DiceReply)
     put!(message_channel, (msg, reply))
 end

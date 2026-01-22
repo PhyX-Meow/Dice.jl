@@ -21,14 +21,14 @@ function diceMain(rough_msg)
         JSON.json(rough_msg; pretty = true) |> println
     end
 
-    dice_msg = parseMsg(rough_msg)
-    isnothing(dice_msg) && return nothing
-    groupId = dice_msg.groupId
-    userId = dice_msg.userId
-    str = dice_msg.text
+    msg = parseMsg(rough_msg)
+    isnothing(msg) && return nothing
+    groupId = msg.groupId
+    userId = msg.userId
+    str = msg.text
 
-    if dice_msg.type == :group
-        put!(log_channel, MessageLog(dice_msg))
+    if msg.type == :group
+        put!(log_channel, MessageLog(msg))
     end
 
     # Keyword reply
@@ -71,7 +71,7 @@ function diceMain(rough_msg)
     randomMode = getConfig("private", userId, "randomMode")
 
     for cmd ∈ cmdList
-        if (ignore && :off ∉ cmd.options) || dice_msg.type ∉ cmd.options
+        if (ignore && :off ∉ cmd.options) || msg.type ∉ cmd.options
             continue
         end
         m = match(cmd.reg, str)
@@ -82,7 +82,7 @@ function diceMain(rough_msg)
                     :quantum => QuantumRNG()
                     _ => Random.default_rng()
                 end
-                cmd.func(dice_msg, m.captures)
+                cmd.func(msg, m.captures)
             catch err
                 err isa DiceError && @reply(err.text)
                 err isa InterruptException && rethrow()

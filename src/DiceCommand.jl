@@ -930,10 +930,6 @@ function pingPong(msg, args)
     nothing
 end
 
-function fuck2060(msg, args)
-    @reply("玩你🐎透明字符呢，滚！", false, true)
-end
-
 const cmdList = [
     DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", [:group]),
     DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", [:group, :private]),
@@ -970,5 +966,4 @@ const cmdList = [
     DiceCmd(initList, r"^init\s*(?:list|show)?", "先攻列表", [:group]),
     DiceCmd(jrrp, r"^jrrp", "今日人品", [:group, :private]),
     DiceCmd(pingPong, r"^ping\s*(\d+)?", "乒乓", [:group, :private]),
-    DiceCmd(fuck2060, r"\u2060", "fuck\\u2060", [:group, :private]),
 ]

@@ -117,7 +117,7 @@ function parseMsg(rough_msg)
     for seg in msg.segments
         @switch seg.type begin
             @case "mention"
-            seg.data.user_id != selfQQ && return nothing
+            string(seg.data.user_id) != selfQQ && return nothing
 
             @case "text"
             text *= seg.data.text
@@ -221,8 +221,14 @@ function diceReply(C::Channel)
 end
 
 function handleRequestNotice(msg)
+
+    if debug_flag
+        JSON.json(msg; pretty = true) |> println
+    end
+
     @switch msg.event_type begin
         @case "friend_request" # Add black list
+        user_id = msg.data.initiator_id
         uid = msg.data.initiator_uid
         request_json = """
         {
@@ -231,9 +237,10 @@ function handleRequestNotice(msg)
         }
         """
         onebotPostJSON("accept_friend_request", request_json)
+        push!(friendList, user_id)
         @async_log begin
             sleep(1)
-            sendPrivateMessage(; text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = msg.data.initiator_id)
+            sendPrivateMessage(; text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = user_id)
         end
 
         @case "group_invitation" # Add black list

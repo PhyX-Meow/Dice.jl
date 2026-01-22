@@ -1,4 +1,4 @@
-const diceVersion = v"0.8.0"
+const diceVersion = v"0.8.1"
 
 const superAdminList = [0xfcf798d59bf3ed7b]
 const local_time_shift = Hour(8)

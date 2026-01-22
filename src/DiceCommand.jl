@@ -930,6 +930,25 @@ function pingPong(msg, args)
     nothing
 end
 
+function draw(msg, args)
+    list = drawData._commands
+    cmd = args[1]
+    if cmd ∉ list
+        reply_str = "悟理球找不到你要抽什么~可用抽卡指令：\n—————————————————"
+        for _cmd in list
+            reply_str = reply_str * '\n' * _cmd
+        end
+        @reply(reply_str)
+    end
+    reply_str = "\${$cmd}"
+    function _replace_draw(str::AbstractString)
+        cmd = match(r"\${(.*?)}", str).captures[1] |> string
+        str = rand(rng_state[], drawData[cmd])
+        return '\$' ∈ str ? replace(str, r"\${.*?}" => _replace_draw) : str
+    end
+    @reply(_replace_draw(reply_str))
+end
+
 const cmdList = [
     DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", [:group]),
     DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", [:group, :private]),
@@ -966,4 +985,5 @@ const cmdList = [
     DiceCmd(initList, r"^init\s*(?:list|show)?", "先攻列表", [:group]),
     DiceCmd(jrrp, r"^jrrp", "今日人品", [:group, :private]),
     DiceCmd(pingPong, r"^ping\s*(\d+)?", "乒乓", [:group, :private]),
+    DiceCmd(draw, r"draw\s*(\S*)", "我的回合，抽卡！", [:group, :private]),
 ]

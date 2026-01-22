@@ -116,6 +116,7 @@ function run_dice(; debug = false)
     global groupData = jldopen("groupData.jld2", "a+")
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")
     global userData = jldopen("userData.jld2", "a+")
+    global drawData = JSON.parsefile("draw.json")
 
     @async_log diceReply(message_channel) # backport
     @async_log diceLogging(log_channel)

@@ -4,7 +4,8 @@ export run_dice, TGMode, QQMode
 
 using HTTP
 using JLD2
-using JSON3
+using JSON3 # For compatibility with Telegram.jl
+using JSON
 using Dates
 using Random
 using MLStyle
@@ -135,6 +136,7 @@ function run_dice(mode; debug = false)
     global groupData = jldopen("groupData.jld2", "a+")
     global jrrpCache = jldopen("jrrpCache.jld2", "a+")
     global userData = jldopen("userData.jld2", "a+")
+    global drawData = JSON.parsefile("draw.json")
 
     @async_log diceReply(mode, message_channel)
     @async_log diceLogging(log_channel)

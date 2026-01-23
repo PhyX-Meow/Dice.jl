@@ -8,7 +8,7 @@ function run_bot(foo::Function)
     if debug_flag
         println("[Debug] Login OK, uin: $(selfQQ), nickname: $(selfQQName)")
     end
-    WebSockets.open(onebot_ws_server) do ws
+    WebSockets.open(onebot_ws_server; suppress_close_error = true) do ws
         for str ∈ ws
             msg = JSON.parse(str)
             foo(msg)

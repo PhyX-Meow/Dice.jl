@@ -86,12 +86,7 @@ function diceMain(rough_msg)
             catch err
                 err isa DiceError && @reply(err.text)
                 err isa InterruptException && rethrow()
-                showerror(stdout, err)
-                println()
-                if debug_flag
-                    display(stacktrace(catch_backtrace()))
-                    println()
-                end
+                @error "Error in processing $(cmd.func)" (err, catch_backtrace())
                 @reply("遇到了触及知识盲区的错误QAQ，请联系开发者修复！")
             finally
                 randomMode == :jrrp && saveUserRNG(userId)
@@ -118,23 +113,21 @@ function run_dice(; debug = false)
     global userData = jldopen("userData.jld2", "a+")
     global drawData = JSON.parsefile("draw.json")
 
-    @async_log diceReply(message_channel) # backport
+    @async_log diceReply(message_channel)
     @async_log diceLogging(log_channel)
 
     try
         run_bot(diceMain)
     catch err
-        bt = stacktrace(catch_backtrace())
-        showerror(stdout, err, bt)
+        err isa InterruptException && return
+        @error "Error in main logic" (err, catch_backtrace())
+    finally
+        Base.close(message_channel)
+        Base.close(log_channel)
+        Base.close(groupData)
+        Base.close(jrrpCache)
+        Base.close(userData)
     end
-end
-
-function handle_exit()
-    Base.close(message_channel)
-    Base.close(log_channel)
-    Base.close(groupData)
-    Base.close(jrrpCache)
-    Base.close(userData)
 end
 
 end # Module

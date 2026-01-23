@@ -48,9 +48,8 @@ macro async_log(expr)
         @async try
             $(esc(expr))
         catch err
-            bt = stacktrace(catch_backtrace())
-            showerror(stderr, err, bt)
-            rethrow(err)
+            @error $(esc("Error in async task $(expr)")) (err, catch_backtrace())
+            # rethrow(err)
         end
     end
 end

@@ -185,12 +185,7 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 
         return [eval(_expr_) for _ ∈ 1:times]
     catch err
         err isa DiceError && rethrow()
-        showerror(stdout, err)
-        println()
-        if debug_flag
-            display(stacktrace(catch_backtrace()))
-            println()
-        end
+        @error "Error when rolling a dice" (err, catch_backtrace())
         throw(DiceError("表达式格式错误，算不出来惹"))
     end
 end
@@ -967,8 +962,8 @@ const cmdList = [
     DiceCmd(invList, r"^pc\s*(?:list)?$", "当前人物卡列表", [:group, :private]),
     DiceCmd(invSelect, r"^pc\s*(.+)", "切换人物卡", [:group, :private]),
     DiceCmd(skillShow, r"^st\s*show\s*(.*)", "查询技能值", [:group, :private]),
-    DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", [:group, :private]),
     DiceCmd(skillRemove, r"^st\s*(?:del|rm|remove)\s*(.*)", "删除技能项", [:group, :private]),
+    DiceCmd(skillSet, r"^st( force)?\s*(.*)", "设定技能值", [:group, :private]),
     DiceCmd(sanCheck, r"^sc\s*(.*)", "理智检定", [:group, :private]),
     DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", [:group, :private]),
     DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", [:group, :private]),

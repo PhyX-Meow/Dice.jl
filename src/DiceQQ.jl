@@ -3,12 +3,13 @@ using HTTP
 function run_bot(foo::Function)
     global onebot_ws_server = get(ENV, "CQ_WS_SERVER", "")
     global onebot_http_server = get(ENV, "CQ_HTTP_SERVER", "")
+    global onebot_access_token = get(ENV, "CQ_ACCESS_TOKEN", "")
     global selfQQ, selfQQName = getSelf()
     global friendList = getFriends()
     if debug_flag
         println("[Debug] Login OK, uin: $(selfQQ), nickname: $(selfQQName)")
     end
-    WebSockets.open(onebot_ws_server; suppress_close_error = true) do ws
+    WebSockets.open(onebot_ws_server * "?access_token=" * onebot_access_token; suppress_close_error = true) do ws
         for str ∈ ws
             msg = JSON.parse(str)
             foo(msg)
@@ -17,11 +18,11 @@ function run_bot(foo::Function)
 end
 
 function onebotPostJSON(action, params; server = onebot_http_server)
-    HTTP.post(server * "/" * action, ["Content-Type" => "application/json"], body = params)
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body = params)
 end
 
 function onebotPostJSON(action; server = onebot_http_server)
-    HTTP.post(server * "/" * action, ["Content-Type" => "application/json"], body = "{}")
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body = "{}")
 end
 
 function getSelf()

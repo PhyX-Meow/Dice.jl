@@ -556,11 +556,11 @@ function invNew(msg, args)
         end
         temp[skill] = success
     end
-    if haskey(inv, "敏捷") && !haskey(inv, "闪避")
-        temp["闪避"] = inv["敏捷"] ÷ 2
+    if haskey(temp, "敏捷") && !haskey(temp, "闪避")
+        temp["闪避"] = temp["敏捷"] ÷ 2
     end
-    if haskey(inv, "教育") && !haskey(inv, "母语")
-        temp["母语"] = inv["教育"]
+    if haskey(temp, "教育") && !haskey(temp, "母语")
+        temp["母语"] = temp["教育"]
     end
 
     for (key, val) in temp
@@ -920,7 +920,7 @@ function pingPong(msg, args)
     t > 86400 && @reply("时间太长了，信号会丢失的qwq")
     @async begin
         sleep(t)
-        @reply("Pong！$(t)秒过去了~")
+        _reply_(msg, DiceReply("Pong！$(t)秒过去了~"))
     end
     nothing
 end

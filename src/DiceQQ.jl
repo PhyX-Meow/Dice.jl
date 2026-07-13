@@ -181,11 +181,13 @@ function diceReply(C::Channel)
             println(string(reply))
         end
 
-        isempty(reply.text) && return nothing
+        isempty(reply.text) && continue
+        target_type = msg.type
         reply_json = if length(reply.text) > 1024
             makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！")
         elseif reply.hidden
             if isFriend(msg.userId)
+                target_type = "private"
                 makeReplyJSON(msg, text = reply.text, type = :private)
             else
                 makeReplyJSON(msg, text = "悟理球只给好友发消息！请先添加好友", ref = true)
@@ -193,7 +195,8 @@ function diceReply(C::Channel)
         else
             makeReplyJSON(msg, text = reply.text, ref = reply.ref)
         end
-        api = "send_$(msg.type)_message"
+
+        api = "send_$(target_type)_message"
         resp = onebotPostJSON(api, reply_json)
 
         if debug_flag

@@ -69,7 +69,7 @@ macro reply(args...)
     end |> esc
 end
 
-function expr_replace(ex, cond::Function, func::Function; skip::Function = _ -> false)
+function expr_replace(ex, cond::Function, func::Function; skip::Function=_ -> false)
     function foo(ex)
         cond(ex) && return deepcopy(func(ex))
         if ex isa Expr
@@ -84,9 +84,9 @@ function expr_replace(ex, cond::Function, func::Function; skip::Function = _ -> 
     foo(deepcopy(ex))
 end # Rewrite to in place version?
 
-function expr_replace(ex, rules::Pair...; skip::Function = _ -> false)
+function expr_replace(ex, rules::Pair...; skip::Function=_ -> false)
     for (key, val) in rules
-        ex = expr_replace(ex, key, val; skip = skip)
+        ex = expr_replace(ex, key, val; skip=skip)
     end
     ex
 end
@@ -147,7 +147,7 @@ function getQuantumSeed()
         headers = Dict("x-api-key" => api_key)
         length = 16
         resp = try
-            HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=10", headers, readtimeout = 1)
+            HTTP.get("https://api.quantumnumbers.anu.edu.au?length=$length&type=hex16&size=10", headers, readtimeout=1)
         catch err
             if err isa HTTP.Exceptions.TimeoutError
                 throw(DiceError("量子超时:("))
@@ -167,7 +167,7 @@ function getQuantumSeed()
             c = SubString(data[i], 33, 40) * SubString(data[i+1], 1, 8)
             d = SubString(data[i+1], 9, 24)
             e = SubString(data[i+1], 25, 40)
-            append!(quantum_state[], parse.(UInt64, [a, b, c, d, e], base = 16))
+            append!(quantum_state[], parse.(UInt64, [a, b, c, d, e], base=16))
         end
     end
     return pop!(quantum_state[])
@@ -229,11 +229,11 @@ function saveUserRNG(userId)
     rng_state[] = Random.default_rng()
 end
 
-function xdy(num::Integer, face::Integer; take::Integer = 0)
+function xdy(num::Integer, face::Integer; take::Integer=0)
     check_dice(num, face)
     roll = rand(rng_state[], 1:face, num)
     @match take begin
-        GuardBy(>(0)) => sum(sort(roll, rev = true)[1:min(take, num)])
+        GuardBy(>(0)) => sum(sort(roll, rev=true)[1:min(take, num)])
         GuardBy(<(0)) => sum(sort(roll)[1:min(-take, num)])
         _ => sum(roll)
     end
@@ -260,7 +260,7 @@ function check_dice(num, face)
     face > 153 && throw(DiceError("你这骰子已经是个球球了，没法骰了啦！"))
 end
 
-function DiceIR(rng, num::Integer, face::Integer; lead::Bool = false)
+function DiceIR(rng, num::Integer, face::Integer; lead::Bool=false)
     check_dice(num, face)
     expr = "$(num)d$(face)"
     result = if lead
@@ -389,7 +389,7 @@ function query_initial_list(the_list::InitialList, name::AbstractString)
     end
     return nothing
 end
-function add_to_initial_list(the_list::InitialList, name::AbstractString, val::Int64; number = 0)
+function add_to_initial_list(the_list::InitialList, name::AbstractString, val::Int64; number=0)
     the_list.multiple[name] > 25 && throw(DiceError("同名条目过多，字母都要用光了！"))
     if number == 0
         number = inc!(the_list.multiple, name)
@@ -401,7 +401,7 @@ function add_to_initial_list(the_list::InitialList, name::AbstractString, val::I
     the_list.multiple[name_with_number] > 0 && throw("存在冲突条目：$(name_with_number)，请先清理冲突的条目")
     return number > 1 ? name_with_number : name
 end
-function delete_from_initial_list(the_list::InitialList, name::AbstractString, number::Int64; preserve_multiple = true)
+function delete_from_initial_list(the_list::InitialList, name::AbstractString, number::Int64; preserve_multiple=true)
     the_list.multiple[name] <= 0 && return nothing
     to_be_deleted = InitialItem[]
     count = 0
@@ -477,5 +477,5 @@ function exportLog(the_log::GameLog)
         write(stream, string(log_item), "\n\n")
     end
     close(stream)
-    sendGroupFile(path = file, chat_id = parse(Int, the_log.groupId), name = "日志-$(the_log.name).txt")
+    sendGroupFile(path=file, chat_id=parse(Int, the_log.groupId), name="日志-$(the_log.name).txt")
 end

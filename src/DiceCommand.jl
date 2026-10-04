@@ -79,7 +79,7 @@ function roll(msg, args) # Only COC check for now
         end
         num > 42 && throw(DiceError("骰子太多了，骰不过来了qwq"))
 
-        resultIRs = rollDice(expr_str; defaultDice = defaultDice, times = num)
+        resultIRs = rollDice(expr_str; defaultDice=defaultDice, times=num)
         reply_str = "你骰出了"
         if isDetailed
             for (i, L) ∈ pairs(resultIRs)
@@ -161,7 +161,7 @@ function roll(msg, args) # Only COC check for now
     @reply(reply_str, isHidden, true)
 end
 
-function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 1, strict_calculate = false)
+function rollDice(str::AbstractString; defaultDice=100, lead=false, times=1, strict_calculate=false)
     str = replace(str, "D" => "d")
     if isempty(str)
         str = strict_calculate ? "0" : "1d$defaultDice"
@@ -181,7 +181,7 @@ function rollDice(str::AbstractString; defaultDice = 100, lead = false, times = 
             return [DiceIR(str, string(result), result, dice_op_precedence[:num])]
         end
         expr = replace(str, "d" => "↑", "/" => "÷") |> Meta.parse
-        _expr_ = expr_replace(expr, x -> x isa Int, x -> :(DiceIR($x)); skip = x -> (x.head == :call && x.args[1] == :↑))
+        _expr_ = expr_replace(expr, x -> x isa Int, x -> :(DiceIR($x)); skip=x -> (x.head == :call && x.args[1] == :↑))
         return [eval(_expr_) for _ ∈ 1:times]
     catch err
         err isa DiceError && rethrow()
@@ -226,19 +226,19 @@ function sanCheck(msg, args) # To do: 恐惧症/躁狂症
     res = "$name 的理智检定：" * res
     @switch check begin
         @case :critical
-        resultIR = rollDice(succ, strict_calculate = true)[1]
+        resultIR = rollDice(succ, strict_calculate=true)[1]
         res *= "大成功！\n显然这点小事完全无法撼动你钢铁般的意志\n"
 
         @case :fumble
-        resultIR = rollDice(fail; lead = true, strict_calculate = true)[1]
+        resultIR = rollDice(fail; lead=true, strict_calculate=true)[1]
         res *= "大失败！\n朝闻道，夕死可矣。\n"
 
         @case :failure
-        resultIR = rollDice(fail, strict_calculate = true)[1]
+        resultIR = rollDice(fail, strict_calculate=true)[1]
         res *= "失败\n得以一窥真实的你陷入了不可名状的恐惧，看来你的“觉悟”还不够呢\n"
 
         @case _
-        resultIR = rollDice(succ, strict_calculate = true)[1]
+        resultIR = rollDice(succ, strict_calculate=true)[1]
         res *= "成功\n真正的调查员无畏觅见真实！可是捱过了这次，还能捱过几次呢？\n"
     end
     expr = resultIR.expr
@@ -336,7 +336,7 @@ function charMakeDnd(msg, args)
 
     res = "DND5e 人物做成："
     for _ in 1:num
-        stats = sort([xdy(4, 6; take = 3) for _ ∈ 1:6]; rev = true)
+        stats = sort([xdy(4, 6; take=3) for _ ∈ 1:6]; rev=true)
         res = res * "\n" * string(stats) * "，总和：" * string(sum(stats))
     end
     @reply(res, false, false)
@@ -394,8 +394,8 @@ function botSwitch(msg, args)
         @reply("悟理球不知道哪里去了~")
 
         @case "exit"
-        sendGroupMessage(text = "悟理球从这里消失了", chat_id = parse(Int, groupId))
-        leaveGroup(chat_id = parse(Int, groupId))
+        sendGroupMessage(text="悟理球从这里消失了", chat_id=parse(Int, groupId))
+        leaveGroup(chat_id=parse(Int, groupId))
         delete!(groupData, groupId)
         return nothing
 
@@ -760,7 +760,7 @@ function skillSet(msg, args)
     @reply(text)
 end
 
-function initAdd(msg, args; overwrite = false) # ToDo: 重写为读取完一次性添加
+function initAdd(msg, args; overwrite=false) # ToDo: 重写为读取完一次性添加
     if !haskey(group_init_list, msg.groupId)
         group_init_list[msg.groupId] = Ref{InitialList}(InitialList())
     end
@@ -790,15 +790,15 @@ function initAdd(msg, args; overwrite = false) # ToDo: 重写为读取完一次�
                 num = 1
                 if num_str !== nothing && length(num_str) > 1
                     num_str[2] == '+' && (overwrite = false)
-                    num = rollDice(@view(num_str[2:end]); defaultDice = 20, strict_calculate = true)[1].total
+                    num = rollDice(@view(num_str[2:end]); defaultDice=20, strict_calculate=true)[1].total
                     num <= 0 && continue
                 end
                 item_number > 0 && num > 1 && throw(DiceError("错误，修改单个条目的时候不允许添加次数！"))
                 num > 10 && throw(DiceError("一次性添加的人太多了，骰子骰不过来了啦"))
-                resultIRs = rollDice(adjust_value; defaultDice = 20, times = num)
-                overwrite && delete_from_initial_list(the_list, name, item_number; preserve_multiple = false)
+                resultIRs = rollDice(adjust_value; defaultDice=20, times=num)
+                overwrite && delete_from_initial_list(the_list, name, item_number; preserve_multiple=false)
                 for L ∈ resultIRs
-                    entry_name = add_to_initial_list(the_list, name, L.total; number = item_number)
+                    entry_name = add_to_initial_list(the_list, name, L.total; number=item_number)
                     if 'd' ∈ L.expr
                         print(buffer, "\n$(entry_name)：$(L.expr)=$(L.total)")
                     else
@@ -814,7 +814,7 @@ function initAdd(msg, args; overwrite = false) # ToDo: 重写为读取完一次�
         rethrow()
     end
 end
-initSet(msg, args) = initAdd(msg, args; overwrite = true)
+initSet(msg, args) = initAdd(msg, args; overwrite=true)
 
 function initRemove(msg, args)
     !haskey(group_init_list, msg.groupId) && @reply("先攻列表空空如也~没有条目可以移除")
@@ -829,7 +829,7 @@ function initRemove(msg, args)
             @reply("已清空先攻列表~悟理球准备好下一场战斗了！")
         end
         if the_list.multiple[name] > 0
-            delete_from_initial_list(the_list, name, 0; preserve_multiple = false)
+            delete_from_initial_list(the_list, name, 0; preserve_multiple=false)
             @reply("再见了，所有的$(name)！")
         end
         throw(DiceError("先攻列表里真的有这个条目吗？悟理球没有找到"))
@@ -944,6 +944,16 @@ function draw(msg, args)
     @reply(_replace_draw(reply_str))
 end
 
+function triangleCheck(msg, args)
+    res = rand(rng_state[], "██３█", 6) |> String
+    num = count(==('3'), res)
+    reply_str = "正在核查您的申请...\n→ " * res
+    if num == 3
+        reply_str *= "\n三重升华！您借用集体之力，与机构的每一位员工心灵相通。每个人都能看到您的英姿，并为您的胜利喝彩。"
+    end
+    @reply(reply_str)
+end
+
 const cmdList = [
     DiceCmd(initSet, r"^ri\s*([\s\S]*)", "设置先攻", [:group]),
     DiceCmd(roll, r"^r((?:[ach]|\d*b|\d*p)*)\s*(.*)", "骰点或检定", [:group, :private]),
@@ -968,6 +978,7 @@ const cmdList = [
     DiceCmd(skillEn, r"^en\s*(.*)", "技能成长", [:group, :private]),
     DiceCmd(randomTi, r"^ti", "随机疯狂发作-即时症状", [:group, :private]),
     DiceCmd(randomLi, r"^li", "随机疯狂发作-总结症状", [:group, :private]),
+    DiceCmd(triangleCheck, r"^ta", "三角机构检定", [:group, :private]),
     DiceCmd(randomGas, r"^gas", "随机煤气灯特质", [:group, :private]),
     DiceCmd(logSwitch, r"^log\s*(new|on|off)\s*(.*)", "开启/关闭日志记录", [:group]),
     DiceCmd(logRemove, r"^log (?:del|rm|remove)\s*(.*)", "删除日志记录", [:group]),

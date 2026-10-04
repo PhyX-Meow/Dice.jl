@@ -9,7 +9,7 @@ function run_bot(foo::Function)
     if debug_flag
         println("[Debug] Login OK, uin: $(selfQQ), nickname: $(selfQQName)")
     end
-    WebSockets.open(onebot_ws_server * "?access_token=" * onebot_access_token; suppress_close_error = true) do ws
+    WebSockets.open(onebot_ws_server * "?access_token=" * onebot_access_token; suppress_close_error=true) do ws
         for str ∈ ws
             msg = JSON.parse(str)
             foo(msg)
@@ -17,12 +17,12 @@ function run_bot(foo::Function)
     end
 end
 
-function onebotPostJSON(action, params; server = onebot_http_server)
-    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body = params)
+function onebotPostJSON(action, params; server=onebot_http_server)
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body=params)
 end
 
-function onebotPostJSON(action; server = onebot_http_server)
-    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body = "{}")
+function onebotPostJSON(action; server=onebot_http_server)
+    HTTP.post(server * "/" * action, ["Content-Type" => "application/json", "Authorization" => "Bearer $onebot_access_token"], body="{}")
 end
 
 function getSelf()
@@ -72,7 +72,7 @@ function leaveGroup(; chat_id)
     onebotPostJSON("quit_group", msg_json)
 end
 
-function sendGroupFile(; path, chat_id, name = "")
+function sendGroupFile(; path, chat_id, name="")
     isempty(name) && (name = splitpath(path)[end])
     full_path = joinpath(pwd(), path)
     msg_json = """
@@ -139,7 +139,7 @@ function parseMsg(rough_msg)
     return DiceMsg(time, type, groupId, userId, userName, msg.message_seq, text)
 end
 
-function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol = msg.type, ref::Bool = false)
+function makeReplyJSON(msg::DiceMsg; text::AbstractString, type::Symbol=msg.type, ref::Bool=false)
     @switch type begin
         @case :group
         target = "group"
@@ -184,16 +184,16 @@ function diceReply(C::Channel)
         isempty(reply.text) && continue
         target_type = msg.type
         reply_json = if length(reply.text) > 1024
-            makeReplyJSON(msg, text = "结果太长了，悟理球不想刷屏，所以就不发啦！")
+            makeReplyJSON(msg, text="结果太长了，悟理球不想刷屏，所以就不发啦！")
         elseif reply.hidden
             if isFriend(msg.userId)
                 target_type = "private"
-                makeReplyJSON(msg, text = reply.text, type = :private)
+                makeReplyJSON(msg, text=reply.text, type=:private)
             else
-                makeReplyJSON(msg, text = "悟理球只给好友发消息！请先添加好友", ref = true)
+                makeReplyJSON(msg, text="悟理球只给好友发消息！请先添加好友", ref=true)
             end
         else
-            makeReplyJSON(msg, text = reply.text, ref = reply.ref)
+            makeReplyJSON(msg, text=reply.text, ref=reply.ref)
         end
 
         api = "send_$(target_type)_message"
@@ -227,7 +227,7 @@ end
 function handleRequestNotice(msg)
 
     if debug_flag
-        JSON.json(msg; pretty = true) |> println
+        JSON.json(msg; pretty=true) |> println
     end
 
     @switch msg.event_type begin
@@ -244,7 +244,7 @@ function handleRequestNotice(msg)
         push!(friendList, user_id)
         @async_log begin
             sleep(1)
-            sendPrivateMessage(; text = "你现在也是手上粘着悟理球的 Friends 啦！", chat_id = user_id)
+            sendPrivateMessage(; text="你现在也是手上粘着悟理球的 Friends 啦！", chat_id=user_id)
         end
 
         @case "group_invitation" # Add black list
@@ -259,7 +259,7 @@ function handleRequestNotice(msg)
         onebotPostJSON("accept_group_invitation", request_json)
 
         @case "group_member_increase"
-        msg.self_id == msg.data.user_id && sendGroupMessage(; text = "悟理球出现了！", chat_id = msg.data.group_id)
+        msg.self_id == msg.data.user_id && sendGroupMessage(; text="悟理球出现了！", chat_id=msg.data.group_id)
 
         @case "message_recall"
         if msg.data.message_scene == "group"

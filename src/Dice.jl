@@ -18,7 +18,7 @@ include("DiceCommand.jl")
 function diceMain(rough_msg)
 
     if debug_flag
-        JSON.json(rough_msg; pretty = true) |> println
+        JSON.json(rough_msg; pretty=true) |> println
     end
 
     msg = parseMsg(rough_msg)
@@ -105,7 +105,7 @@ const group_init_list = Dict{String,Ref{InitialList}}()
 const rng_state = Ref{Union{AbstractRNG,QuantumRNG}}(Random.default_rng())
 const quantum_state = Ref{Vector{UInt64}}(UInt64[])
 
-function run_dice(; debug = false)
+function run_dice(; debug=false)
     debug && (global debug_flag = true)
 
     global groupData = jldopen("groupData.jld2", "a+")

@@ -951,6 +951,7 @@ function triangleCheck(msg, args)
     reply_str *= @match num begin
         0 => "\n申请已驳回。"
         3 => "\n三重升华！您借用集体之力，与机构的每一位员工心灵相通。每个人都能看到您的英姿，并为您的胜利喝彩。"
+        _ => ""
     end
     @reply(reply_str)
 end
